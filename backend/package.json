@@ -1,0 +1,33 @@
+{
+  "name": "wwr-notify-me-backend",
+  "version": "1.0.0",
+  "description": "Backend API for WWR Notify Me application.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "worker": "node worker/agenda.js"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^7.7.0",
+    "agenda": "^5.0.0",
+    "bcrypt": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.0.0",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.0",
+    "morgan": "^1.10.0",
+    "rss-parser": "^3.13.0",
+    "twitter-api-v2": "^1.24.0",
+    "validator": "^13.11.0",
+    "wwr-notify-me-root": "file:.."
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Notify Me - Remote Job Alerts",
+  "short_name": "NotifyMe",
+  "description": "Get instant alerts for new remote jobs from your favorite sources. Manage feeds, filter by category, and never miss an opportunity!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2563eb",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+} 
