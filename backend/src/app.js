@@ -11,6 +11,7 @@ const app = express();
 app.use(helmet());
 app.use(cors({
   origin: [
+    'https://notify-me-rw.netlify.app',
     'http://localhost:3000',
     'http://localhost:3001'
   ],
