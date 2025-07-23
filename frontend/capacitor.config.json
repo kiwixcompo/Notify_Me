@@ -1,0 +1,11 @@
+{
+  "appId": "com.notifyme.pwa",
+  "appName": "NotifyMe",
+  "webDir": "out",
+
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  }
+}

@@ -25,7 +25,14 @@ export default function AuthForm({ mode }) {
       localStorage.setItem('token', res.data.token);
       router.replace('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'An error occurred.');
+      console.error('Auth error:', err);
+      if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error);
+      } else if (err.message && err.message.includes('Network')) {
+        setError('Network error: Please check your connection and API URL.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -91,7 +98,7 @@ export default function AuthForm({ mode }) {
           />
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg shadow hover:bg-blue-700 hover:scale-105 active:scale-95 transition font-semibold text-lg mb-2"
+            className="w-full bg-blue-600 text-white py-3 rounded-lg shadow hover:bg-blue-700 hover:scale-105 active:scale-95 transition font-semibold text-lg mb-2 z-10 focus:outline-none focus:ring-4 focus:ring-blue-300"
             disabled={loading}
           >
             {loading ? (mode === 'login' ? 'Logging in...' : 'Registering...') : (mode === 'login' ? 'Login' : 'Register')}

@@ -5,6 +5,14 @@ import Layout from '../components/Layout';
 import JobCard from '../components/JobCard';
 import { BriefcaseIcon, FunnelIcon, ClockIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
+// Try to import Capacitor Local Notifications if available
+let CapacitorLocalNotifications = null;
+let CapacitorPushNotifications = null;
+try {
+  CapacitorLocalNotifications = require('@capacitor/local-notifications');
+  CapacitorPushNotifications = require('@capacitor/push-notifications');
+} catch {}
+
 export default function Dashboard() {
   const router = useRouter();
   const [jobs, setJobs] = useState([]);
@@ -71,6 +79,9 @@ export default function Dashboard() {
     }
   };
 
+  // Auto-refresh interval in milliseconds (default: 5 minutes)
+  const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -84,6 +95,17 @@ export default function Dashboard() {
     fetchAllFeedsWithProgress();
     // eslint-disable-next-line
   }, [router, selectedDate, showLast24h]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAllFeedsWithProgress();
+      setShowAutoRefreshMsg(true);
+      setTimeout(() => setShowAutoRefreshMsg(false), 2000);
+    }, AUTO_REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, []);
+
+  const [showAutoRefreshMsg, setShowAutoRefreshMsg] = useState(false);
 
   const fetchJobs = async (token) => {
     try {
@@ -294,6 +316,135 @@ export default function Dashboard() {
     }));
   }, [filteredFeedResults, showOlderJobs]);
 
+  // Filter jobs by keyword (title, description, or content)
+  const filteredByKeywordFeedResults = useMemo(() => {
+    if (!rawFeedKeyword.trim()) return filteredByDateFeedResults;
+    // Split by spaces, ignore empty, lowercase
+    const keywords = rawFeedKeyword.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return filteredByDateFeedResults.map(feed => ({
+      ...feed,
+      items: (feed.items || []).filter(item => {
+        const fields = [item.title, item.description, item.content, item.contentSnippet];
+        // All keywords must match in any field
+        return keywords.every(kw => fields.some(field => field && field.toLowerCase().includes(kw)));
+      })
+    }));
+  }, [filteredByDateFeedResults, rawFeedKeyword]);
+
+  // Helper to highlight keywords in a string
+  function highlightKeywords(text) {
+    if (!rawFeedKeyword.trim() || !text) return text;
+    const keywords = rawFeedKeyword.trim().split(/\s+/).filter(Boolean);
+    let result = text;
+    keywords.forEach(kw => {
+      if (!kw) return;
+      // Escape regex special chars
+      const safeKw = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${safeKw})`, 'gi');
+      result = result.replace(regex, '<mark>$1</mark>');
+    });
+    return result;
+  }
+
+  // Add this helper to trigger a notification
+  async function triggerJobNotification(job, feedName) {
+    const title = `New job: ${job.title}`;
+    const body = `From: ${feedName}`;
+    const url = job.link || job.guid || '';
+    // Try Capacitor Local Notifications first
+    if (CapacitorLocalNotifications && CapacitorLocalNotifications.LocalNotifications) {
+      await CapacitorLocalNotifications.LocalNotifications.schedule({
+        notifications: [
+          {
+            title,
+            body,
+            id: Date.now(),
+            smallIcon: 'ic_launcher',
+            actionTypeId: '',
+            extra: { url },
+          },
+        ],
+      });
+    } else if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        const n = new Notification(title, {
+          body,
+          data: { url },
+        });
+        n.onclick = () => {
+          if (url) window.open(url, '_blank');
+        };
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+    }
+  }
+
+  // After jobs are fetched, check for keyword matches and notify
+  useEffect(() => {
+    if (!rawFeedResults || !rawFeedResults.length) return;
+    // Get keywords from localStorage
+    const alertKeywords = (localStorage.getItem('alertKeywords') || '').split(/,|\n/).map(k => k.trim().toLowerCase()).filter(Boolean);
+    if (!alertKeywords.length) return;
+    // Track notified job IDs in localStorage
+    const notifiedIds = new Set(JSON.parse(localStorage.getItem('notifiedJobIds') || '[]'));
+    let newNotifiedIds = Array.from(notifiedIds);
+    rawFeedResults.forEach(feed => {
+      const feedName = feed.feed?.name || feed.feed?.url || 'Unknown Feed';
+      (feed.items || []).forEach(job => {
+        const jobId = job.guid || job.link || job.title;
+        if (!jobId || notifiedIds.has(jobId)) return;
+        const title = (job.title || '').toLowerCase();
+        if (alertKeywords.some(kw => title.includes(kw))) {
+          triggerJobNotification(job, feedName);
+          newNotifiedIds.push(jobId);
+        }
+      });
+    });
+    if (newNotifiedIds.length > notifiedIds.size) {
+      localStorage.setItem('notifiedJobIds', JSON.stringify(newNotifiedIds));
+    }
+  }, [rawFeedResults]);
+
+  // Listen for Capacitor notification taps (deep linking)
+  useEffect(() => {
+    if (CapacitorLocalNotifications && CapacitorLocalNotifications.LocalNotifications) {
+      CapacitorLocalNotifications.LocalNotifications.addListener('localNotificationActionPerformed', event => {
+        const url = event?.notification?.extra?.url;
+        if (url) window.open(url, '_blank');
+      });
+    }
+  }, []);
+
+  // Register for push notifications on Android (Capacitor)
+  useEffect(() => {
+    if (!CapacitorPushNotifications || !CapacitorPushNotifications.PushNotifications) return;
+    CapacitorPushNotifications.PushNotifications.requestPermissions().then(result => {
+      if (result.receive === 'granted') {
+        CapacitorPushNotifications.PushNotifications.register();
+      }
+    });
+    // On registration, get the FCM token
+    CapacitorPushNotifications.PushNotifications.addListener('registration', token => {
+      console.log('Push registration token:', token.value);
+      // TODO: Optionally send token.value to your backend for targeted notifications
+    });
+    // On registration error
+    CapacitorPushNotifications.PushNotifications.addListener('registrationError', err => {
+      console.error('Push registration error:', err);
+    });
+    // Handle incoming push notifications
+    CapacitorPushNotifications.PushNotifications.addListener('pushNotificationReceived', notification => {
+      console.log('Push notification received:', notification);
+      // Optionally show a local notification or update UI
+    });
+    // Handle notification tap (deep linking)
+    CapacitorPushNotifications.PushNotifications.addListener('pushNotificationActionPerformed', notification => {
+      const url = notification?.notification?.data?.url;
+      if (url) window.open(url, '_blank');
+    });
+  }, []);
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto py-8 px-4">
@@ -329,6 +480,10 @@ export default function Dashboard() {
             </div>
             <div className="text-sm text-blue-700 font-semibold">{progress}%</div>
           </div>
+        )}
+
+        {showAutoRefreshMsg && (
+          <div className="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg z-50 transition">Jobs auto-refreshed!</div>
         )}
 
         {/* Jobs Grid */}
@@ -413,7 +568,7 @@ export default function Dashboard() {
           </div>
           {rawFeedError && <div className="text-red-600 mb-2 font-semibold">{rawFeedError}</div>}
           <div className="space-y-8">
-            {filteredByDateFeedResults.map(feedResult => (
+            {filteredByKeywordFeedResults.map(feedResult => (
               <div key={feedResult.feed.url} className="bg-white rounded-xl shadow-lg">
                 <button
                   className="w-full flex justify-between items-center px-6 py-4 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-t-xl bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition"
@@ -441,15 +596,15 @@ export default function Dashboard() {
                             onClick={() => window.open(item.link, '_blank')}
                           >
                             <div>
-                              <div className="font-bold text-lg mb-1 text-gray-900 line-clamp-2">{item.title}</div>
+                              <div className="font-bold text-lg mb-1 text-gray-900 line-clamp-2" dangerouslySetInnerHTML={{ __html: highlightKeywords(item.title) }} />
                               <div className="text-xs text-gray-500 mb-2">{item.pubDate && new Date(item.pubDate).toLocaleString()}</div>
-                              {/* Render HTML if present, else fallback to snippet/description */}
+                              {/* Render HTML if present, else fallback to snippet/description, with highlighting */}
                               {item.content && /<\/?[a-z][\s\S]*>/i.test(item.content) ? (
-                                <div className="text-gray-700 mb-2 line-clamp-3" dangerouslySetInnerHTML={{ __html: item.content }} />
+                                <div className="text-gray-700 mb-2 line-clamp-3" dangerouslySetInnerHTML={{ __html: highlightKeywords(item.content) }} />
                               ) : item.description && /<\/?[a-z][\s\S]*>/i.test(item.description) ? (
-                                <div className="text-gray-700 mb-2 line-clamp-3" dangerouslySetInnerHTML={{ __html: item.description }} />
+                                <div className="text-gray-700 mb-2 line-clamp-3" dangerouslySetInnerHTML={{ __html: highlightKeywords(item.description) }} />
                               ) : (
-                                <div className="text-gray-700 mb-2 line-clamp-3">{item.contentSnippet || item.description || ''}</div>
+                                <div className="text-gray-700 mb-2 line-clamp-3" dangerouslySetInnerHTML={{ __html: highlightKeywords(item.contentSnippet || item.description || '') }} />
                               )}
                             </div>
                             <div className="mt-2 text-blue-600 font-semibold text-sm underline self-end">View Job</div>
