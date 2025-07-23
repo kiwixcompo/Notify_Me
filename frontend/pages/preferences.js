@@ -187,9 +187,33 @@ export default function Preferences() {
     // Parse text area
     if (bulkText.trim()) {
       feedsToAdd = feedsToAdd.concat(
-        bulkText.split('\n').map(line => line.trim()).filter(Boolean).map(url => ({ url }))
+        bulkText.split('\n').map(line => line.trim()).filter(Boolean).flatMap(line => {
+          // If comma-separated, split and treat as multiple URLs
+          if (line.includes(',')) {
+            return line.split(',').map(url => url.trim()).filter(Boolean).map(url => ({ url }));
+          }
+          return [{ url: line }];
+        })
       );
     }
+    // Auto-fill name if missing, using domain or significant part of URL
+    feedsToAdd = feedsToAdd.map(feed => {
+      if (!feed.name || !feed.name.trim()) {
+        try {
+          const urlObj = new URL(feed.url);
+          let name = urlObj.hostname.replace(/^www\./, '').split('.')[0];
+          if (!name) name = urlObj.hostname;
+          name = name.charAt(0).toUpperCase() + name.slice(1);
+          return { ...feed, name };
+        } catch {
+          // fallback: use part of the string before first dot or slash
+          let name = feed.url.split(/[./]/).filter(Boolean)[0] || 'Feed';
+          name = name.charAt(0).toUpperCase() + name.slice(1);
+          return { ...feed, name };
+        }
+      }
+      return feed;
+    });
     // Parse CSV
     if (bulkCsvFile) {
       await new Promise((resolve, reject) => {
