@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
-import { LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/solid';
+import { LockClosedIcon, EnvelopeIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
 
 export default function AuthForm({ mode }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [repeatPassword, setRepeatPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
@@ -15,6 +17,10 @@ export default function AuthForm({ mode }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (mode === 'register' && password !== repeatPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
     setLoading(true);
     try {
       if (mode === 'register') {
@@ -87,15 +93,52 @@ export default function AuthForm({ mode }) {
             placeholder="you@email.com"
           />
           <label className="block mb-2 font-medium w-full text-left">Password</label>
-          <input
-            type="password"
-            className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 mb-6 transition"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            placeholder="Your password"
-          />
+          <div className="relative w-full mb-4">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 transition pr-10"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              placeholder="Your password"
+            />
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600 focus:outline-none"
+              tabIndex={-1}
+              onClick={() => setShowPassword(v => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+            </button>
+          </div>
+          {mode === 'register' && (
+            <>
+              <label className="block mb-2 font-medium w-full text-left">Repeat Password</label>
+              <div className="relative w-full mb-6">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 transition pr-10"
+                  value={repeatPassword}
+                  onChange={e => setRepeatPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  placeholder="Repeat your password"
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600 focus:outline-none"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                </button>
+              </div>
+            </>
+          )}
+          {mode === 'login' && <div className="mb-6" />}
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-3 rounded-lg shadow hover:bg-blue-700 hover:scale-105 active:scale-95 transition font-semibold text-lg mb-2 z-10 focus:outline-none focus:ring-4 focus:ring-blue-300"

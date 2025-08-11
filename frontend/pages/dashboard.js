@@ -106,6 +106,15 @@ export default function Dashboard() {
   }, []);
 
   const [showAutoRefreshMsg, setShowAutoRefreshMsg] = useState(false);
+  const [notifPermission, setNotifPermission] = useState(typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default');
+
+  const handleEnableNotifications = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      Notification.requestPermission().then(permission => {
+        setNotifPermission(permission);
+      });
+    }
+  };
 
   const fetchJobs = async (token) => {
     try {
@@ -394,8 +403,9 @@ export default function Dashboard() {
       (feed.items || []).forEach(job => {
         const jobId = job.guid || job.link || job.title;
         if (!jobId || notifiedIds.has(jobId)) return;
-        const title = (job.title || '').toLowerCase();
-        if (alertKeywords.some(kw => title.includes(kw))) {
+        // Expanded: check title, description, content, contentSnippet
+        const fields = [job.title, job.description, job.content, job.contentSnippet].map(f => (f || '').toLowerCase());
+        if (alertKeywords.some(kw => fields.some(field => field.includes(kw)))) {
           triggerJobNotification(job, feedName);
           newNotifiedIds.push(jobId);
         }
@@ -406,6 +416,19 @@ export default function Dashboard() {
     }
   }, [rawFeedResults]);
 
+  // Request notification permission on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission !== 'granted') {
+            alert('Enable notifications to get job alerts on your device!');
+          }
+        });
+      }
+    }
+  }, []);
+
   // Listen for Capacitor notification taps (deep linking)
   useEffect(() => {
     if (CapacitorLocalNotifications && CapacitorLocalNotifications.LocalNotifications) {
@@ -413,6 +436,15 @@ export default function Dashboard() {
         const url = event?.notification?.extra?.url;
         if (url) window.open(url, '_blank');
       });
+    }
+    // Fallback for browser notifications
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      window.onclick = event => {
+        // If a notification is clicked, try to open the job link
+        if (event.target && event.target.data && event.target.data.url) {
+          window.open(event.target.data.url, '_blank');
+        }
+      };
     }
   }, []);
 
@@ -447,69 +479,59 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto py-8 px-4">
+      <div className="max-w-6xl mx-auto py-4 px-2 sm:py-8 sm:px-4 overflow-x-hidden">
+        {/* Enable Notifications Button */}
+        {notifPermission === 'default' && (
+          <div className="mb-4 flex justify-center">
+            <button
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition font-semibold"
+              onClick={handleEnableNotifications}
+            >
+              Enable Notifications
+            </button>
+          </div>
+        )}
+        {notifPermission === 'granted' && (
+          <div className="mb-4 text-green-700 text-center font-semibold">Notifications enabled!</div>
+        )}
+        {notifPermission === 'denied' && (
+          <div className="mb-4 text-red-600 text-center font-semibold">Notifications are blocked. Please enable them in your browser settings.</div>
+        )}
         {/* Header */}
-        <div className="bg-white shadow rounded-lg p-6 mb-8 flex flex-col md:flex-row md:items-center md:justify-between">
+        <div className="bg-white shadow rounded-lg p-4 sm:p-6 mb-6 sm:mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Remote Jobs Dashboard</h1>
-            <div className="text-gray-600 text-lg">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-1 sm:mb-2">Remote Jobs Dashboard</h1>
+            <div className="text-gray-600 text-base sm:text-lg">
               {totalRawJobs} job{totalRawJobs === 1 ? '' : 's'} fetched across all feeds
             </div>
           </div>
-          {/* Remove calendar and related controls */}
-          {/* Calendar and calendar controls have been removed as requested */}
         </div>
-
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600">{error}</p>
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 text-sm sm:text-base">{error}</p>
           </div>
         )}
-
         {/* Loading State */}
         {rawFeedLoading && (
-          <div className="flex flex-col items-center justify-center py-16 animate-pulse">
-            <div className="text-2xl font-bold text-blue-600 mb-2">Fetching the freshest remote jobs for you...</div>
-            <div className="text-lg text-blue-400 italic mb-4">Hang tight, your dream job might be in this batch! 🚀</div>
-            <div className="w-full max-w-md h-4 bg-blue-100 rounded-full overflow-hidden shadow mb-2">
+          <div className="flex flex-col items-center justify-center py-8 sm:py-16 animate-pulse">
+            <div className="text-xl sm:text-2xl font-bold text-blue-600 mb-1 sm:mb-2">Fetching the freshest remote jobs for you...</div>
+            <div className="text-base sm:text-lg text-blue-400 italic mb-2 sm:mb-4">Hang tight, your dream job might be in this batch! 🚀</div>
+            <div className="w-full max-w-xs sm:max-w-md h-3 sm:h-4 bg-blue-100 rounded-full overflow-hidden shadow mb-1 sm:mb-2">
               <div
                 className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-200"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
-            <div className="text-sm text-blue-700 font-semibold">{progress}%</div>
+            <div className="text-xs sm:text-sm text-blue-700 font-semibold">{progress}%</div>
           </div>
         )}
-
         {showAutoRefreshMsg && (
-          <div className="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg z-50 transition">Jobs auto-refreshed!</div>
+          <div className="fixed top-2 right-2 sm:top-4 sm:right-4 bg-blue-600 text-white px-3 sm:px-4 py-1 sm:py-2 rounded shadow-lg z-50 transition text-xs sm:text-base">Jobs auto-refreshed!</div>
         )}
-
         {/* Jobs Grid */}
-        {!loading && jobs.length === 0 && (
-          <>
-            {/* --- Category Filter Dropdown --- */}
-            <div className="mb-6 flex flex-col md:flex-row md:items-center md:space-x-4">
-              <label className="font-semibold text-gray-700 mb-2 md:mb-0">Filter by Category:</label>
-              <select
-                value={selectedCategory}
-                onChange={e => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white text-gray-800"
-              >
-                <option value="">All Categories</option>
-                {allCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-            {/* --- End Category Filter Dropdown --- */}
-          </>
-        )}
-
-        {/* Jobs List */}
         {!loading && jobs.length > 0 && (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {jobs.map(job => (
               <JobCard
                 key={job.wwrJobId || job._id}
@@ -519,26 +541,24 @@ export default function Dashboard() {
             ))}
           </div>
         )}
-
         {/* Toggle for viewing older jobs */}
-        <div className="mb-6 flex items-center gap-4">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
           <button
-            className={`px-4 py-2 rounded-lg font-semibold shadow transition ${!showOlderJobs ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-700'}`}
+            className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold shadow transition text-sm sm:text-base ${!showOlderJobs ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-700'}`}
             onClick={() => setShowOlderJobs(false)}
           >
             Recent Jobs (Last 3 Days)
           </button>
           <button
-            className={`px-4 py-2 rounded-lg font-semibold shadow transition ${showOlderJobs ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-700'}`}
+            className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold shadow transition text-sm sm:text-base ${showOlderJobs ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-700'}`}
             onClick={() => setShowOlderJobs(true)}
           >
             View Older Jobs
           </button>
         </div>
-        {/* --- End Toggle --- */}
         {/* --- Raw Feed Viewer Section --- */}
-        <div className="mt-16">
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="mt-8 sm:mt-16">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-2 sm:mb-4">
             <input
               type="text"
               placeholder="Filter by keyword..."
@@ -547,7 +567,7 @@ export default function Dashboard() {
                 setRawFeedKeyword(e.target.value);
                 if (e.target.value === '') fetchAllFeedsWithProgress();
               }}
-              className="border px-3 py-2 rounded-lg w-full md:w-1/3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+              className="border px-3 py-2 rounded-lg w-full sm:w-1/3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-sm sm:text-base"
             />
             <input
               type="date"
@@ -556,47 +576,47 @@ export default function Dashboard() {
                 setRawFeedDate(e.target.value);
                 fetchAllFeedsWithProgress();
               }}
-              className="border px-3 py-2 rounded-lg w-full md:w-1/3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+              className="border px-3 py-2 rounded-lg w-full sm:w-1/3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-sm sm:text-base"
             />
             <button
               onClick={() => fetchAllFeedsWithProgress()}
-              className="bg-gradient-to-r from-blue-600 to-blue-400 text-white px-6 py-2 rounded-lg shadow hover:from-blue-700 hover:to-blue-500 transition font-semibold"
+              className="bg-gradient-to-r from-blue-600 to-blue-400 text-white px-4 sm:px-6 py-2 rounded-lg shadow hover:from-blue-700 hover:to-blue-500 transition font-semibold text-sm sm:text-base"
               disabled={rawFeedLoading}
             >
               {rawFeedLoading ? 'Loading...' : 'Fetch Feeds'}
             </button>
           </div>
-          {rawFeedError && <div className="text-red-600 mb-2 font-semibold">{rawFeedError}</div>}
-          <div className="space-y-8">
+          {rawFeedError && <div className="text-red-600 mb-2 font-semibold text-sm sm:text-base">{rawFeedError}</div>}
+          <div className="space-y-6 sm:space-y-8">
             {filteredByKeywordFeedResults.map(feedResult => (
-              <div key={feedResult.feed.url} className="bg-white rounded-xl shadow-lg">
+              <div key={feedResult.feed.url} className="bg-white rounded-xl shadow-lg overflow-x-auto">
                 <button
-                  className="w-full flex justify-between items-center px-6 py-4 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-t-xl bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition"
+                  className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 sm:px-6 py-3 sm:py-4 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-t-xl bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition gap-2 sm:gap-0"
                   onClick={() => setExpandedFeed(expandedFeed === feedResult.feed.url ? null : feedResult.feed.url)}
                 >
-                  <span className="text-xl font-semibold text-blue-700 flex items-center gap-2">
+                  <span className="text-lg sm:text-xl font-semibold text-blue-700 flex items-center gap-2">
                     <span className="inline-block w-2 h-2 rounded-full bg-blue-400"></span>
                     {feedResult.feed.name || feedResult.feed.url}
                   </span>
-                  <span className="text-sm text-gray-500">{feedResult.items.length} job{feedResult.items.length === 1 ? '' : 's'}</span>
-                  <svg className={`w-5 h-5 ml-2 transform transition-transform ${expandedFeed === feedResult.feed.url ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  <span className="text-sm text-gray-500 mt-1 sm:mt-0">{feedResult.items.length} job{feedResult.items.length === 1 ? '' : 's'}</span>
+                  <svg className={`w-5 h-5 ml-0 sm:ml-2 transform transition-transform ${expandedFeed === feedResult.feed.url ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                 </button>
                 {expandedFeed === feedResult.feed.url && (
-                  <div className="px-6 pb-6 pt-2">
+                  <div className="px-4 sm:px-6 pb-4 sm:pb-6 pt-1 sm:pt-2">
                     {feedResult.error ? (
-                      <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4 font-medium shadow-sm">
+                      <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4 font-medium shadow-sm text-sm sm:text-base">
                         {feedResult.error}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         {feedResult.items.map((item, idx) => (
                           <div
                             key={item.guid || item.link || idx}
-                            className="bg-white border border-gray-200 rounded-xl shadow-md p-5 hover:shadow-xl hover:border-blue-400 transition cursor-pointer flex flex-col justify-between min-h-[180px]"
+                            className="bg-white border border-gray-200 rounded-xl shadow-md p-3 sm:p-5 hover:shadow-xl hover:border-blue-400 transition cursor-pointer flex flex-col justify-between min-h-[180px]"
                             onClick={() => window.open(item.link, '_blank')}
                           >
                             <div>
-                              <div className="font-bold text-lg mb-1 text-gray-900 line-clamp-2" dangerouslySetInnerHTML={{ __html: highlightKeywords(item.title) }} />
+                              <div className="font-bold text-base sm:text-lg mb-1 text-gray-900 line-clamp-2" dangerouslySetInnerHTML={{ __html: highlightKeywords(item.title) }} />
                               <div className="text-xs text-gray-500 mb-2">{item.pubDate && new Date(item.pubDate).toLocaleString()}</div>
                               {/* Render HTML if present, else fallback to snippet/description, with highlighting */}
                               {item.content && /<\/?[a-z][\s\S]*>/i.test(item.content) ? (
@@ -607,10 +627,10 @@ export default function Dashboard() {
                                 <div className="text-gray-700 mb-2 line-clamp-3" dangerouslySetInnerHTML={{ __html: highlightKeywords(item.contentSnippet || item.description || '') }} />
                               )}
                             </div>
-                            <div className="mt-2 text-blue-600 font-semibold text-sm underline self-end">View Job</div>
+                            <div className="mt-2 text-blue-600 font-semibold text-xs sm:text-sm underline self-end">View Job</div>
                           </div>
                         ))}
-                        {feedResult.items.length === 0 && <div className="text-gray-400 italic">No jobs found for this feed.</div>}
+                        {feedResult.items.length === 0 && <div className="text-gray-400 italic text-xs sm:text-base">No jobs found for this feed.</div>}
                       </div>
                     )}
                   </div>

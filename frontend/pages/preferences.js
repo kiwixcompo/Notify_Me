@@ -110,6 +110,12 @@ export default function Preferences() {
     setSaving(true);
     setError('');
     setSuccess(false);
+    // Duplicate check
+    if (feeds.some(f => f.url.trim().toLowerCase() === newFeedUrl.trim().toLowerCase())) {
+      setError('This feed already exists.');
+      setSaving(false);
+      return;
+    }
     const token = localStorage.getItem('token');
     try {
       await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds`, {
@@ -196,24 +202,34 @@ export default function Preferences() {
         })
       );
     }
-    // Auto-fill name if missing, using domain or significant part of URL
+    // Auto-fill name if missing, using domain or significant part of URL, and camel case it
+    function toCamelCase(str) {
+      return str
+        .replace(/[-_]/g, ' ')
+        .replace(/(?:^|\s|\.|\/|:)([a-z])/g, (m, c) => c ? c.toUpperCase() : '')
+        .replace(/\s+/g, '');
+    }
     feedsToAdd = feedsToAdd.map(feed => {
       if (!feed.name || !feed.name.trim()) {
         try {
           const urlObj = new URL(feed.url);
           let name = urlObj.hostname.replace(/^www\./, '').split('.')[0];
           if (!name) name = urlObj.hostname;
-          name = name.charAt(0).toUpperCase() + name.slice(1);
+          name = toCamelCase(name);
           return { ...feed, name };
         } catch {
           // fallback: use part of the string before first dot or slash
           let name = feed.url.split(/[./]/).filter(Boolean)[0] || 'Feed';
-          name = name.charAt(0).toUpperCase() + name.slice(1);
+          name = toCamelCase(name);
           return { ...feed, name };
         }
       }
       return feed;
     });
+    // Remove duplicates (existing feeds)
+    const existingUrls = feeds.map(f => f.url.trim().toLowerCase());
+    const uniqueFeedsToAdd = feedsToAdd.filter(feed => !existingUrls.includes(feed.url.trim().toLowerCase()));
+    const skippedCount = feedsToAdd.length - uniqueFeedsToAdd.length;
     // Parse CSV
     if (bulkCsvFile) {
       await new Promise((resolve, reject) => {
@@ -242,14 +258,14 @@ export default function Preferences() {
         });
       });
     }
-    if (!feedsToAdd.length) {
-      setBulkUploadResult({ error: 'No valid feeds found.' });
+    if (!uniqueFeedsToAdd.length) {
+      setBulkUploadResult({ error: skippedCount ? `All feeds already exist. (${skippedCount} skipped)` : 'No valid feeds found.' });
       setBulkUploading(false);
       return;
     }
     // Add feeds one by one
     let successCount = 0, failCount = 0, errors = [];
-    for (const feed of feedsToAdd) {
+    for (const feed of uniqueFeedsToAdd) {
       try {
         await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds`, feed, {
           headers: { Authorization: `Bearer ${token}` }
@@ -260,7 +276,7 @@ export default function Preferences() {
         errors.push(feed.url + ': ' + (err.response?.data?.error || err.message));
       }
     }
-    setBulkUploadResult({ successCount, failCount, errors });
+    setBulkUploadResult({ successCount, failCount, errors, skippedCount });
     setBulkText('');
     setBulkCsvFile(null);
     fetchFeeds();
@@ -279,6 +295,42 @@ export default function Preferences() {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(urlObj);
+  };
+
+  // Add state for bulk selection
+  const [selectedFeeds, setSelectedFeeds] = useState([]);
+  const handleSelectFeed = (id) => {
+    setSelectedFeeds(selectedFeeds.includes(id)
+      ? selectedFeeds.filter(fid => fid !== id)
+      : [...selectedFeeds, id]);
+  };
+  const handleSelectAllFeeds = () => {
+    if (selectedFeeds.length === feeds.length) {
+      setSelectedFeeds([]);
+    } else {
+      setSelectedFeeds(feeds.map(f => f._id));
+    }
+  };
+  const handleBulkDeleteFeeds = async () => {
+    if (!selectedFeeds.length) return;
+    setSaving(true);
+    setError('');
+    setSuccess(false);
+    const token = localStorage.getItem('token');
+    try {
+      await Promise.all(selectedFeeds.map(id =>
+        axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ));
+      setSuccess(true);
+      setSelectedFeeds([]);
+      fetchFeeds();
+    } catch (err) {
+      setError('Failed to delete selected RSS feeds');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -374,6 +426,7 @@ export default function Preferences() {
                 {bulkUploadResult.error && <p className="text-red-600 font-medium">{bulkUploadResult.error}</p>}
                 {bulkUploadResult.successCount > 0 && <p className="text-green-600 font-medium">{bulkUploadResult.successCount} feeds added!</p>}
                 {bulkUploadResult.failCount > 0 && <p className="text-yellow-600 font-medium">{bulkUploadResult.failCount} failed.</p>}
+                {bulkUploadResult.skippedCount > 0 && <p className="text-purple-600 font-medium">{bulkUploadResult.skippedCount} already exist.</p>}
                 {bulkUploadResult.errors && bulkUploadResult.errors.length > 0 && (
                   <ul className="text-xs text-red-500 mt-1 list-disc ml-5">
                     {bulkUploadResult.errors.map((err, i) => <li key={i}>{err}</li>)}
@@ -419,20 +472,46 @@ export default function Preferences() {
           </div>
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-blue-700">Your RSS Feeds</h2>
-            <button
-              className="px-4 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm"
-              onClick={handleExportFeeds}
-              disabled={!feeds.length}
-            >
-              Export as CSV
-            </button>
+            <div className="flex gap-2 items-center">
+              <button
+                className="px-4 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm"
+                onClick={handleExportFeeds}
+                disabled={!feeds.length}
+              >
+                Export as CSV
+              </button>
+              <button
+                className="px-4 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold text-sm"
+                onClick={handleBulkDeleteFeeds}
+                disabled={!selectedFeeds.length || saving}
+              >
+                Delete Selected
+              </button>
+              <label className="flex items-center gap-1 ml-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={selectedFeeds.length === feeds.length && feeds.length > 0}
+                  onChange={handleSelectAllFeeds}
+                  className="accent-blue-600"
+                  title="Select All"
+                />
+                <span className="text-xs text-gray-700">Select All</span>
+              </label>
+            </div>
           </div>
           {feeds.length === 0 ? (
             <p className="text-gray-500">No RSS feeds added yet.</p>
           ) : (
             <ul className="divide-y">
               {feeds.map(feed => (
-                <li key={feed._id} className="py-4 flex items-center justify-between">
+                <li key={feed._id} className="py-4 flex items-center justify-between gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedFeeds.includes(feed._id)}
+                    onChange={() => handleSelectFeed(feed._id)}
+                    className="mr-3 accent-blue-600"
+                    title="Select feed"
+                  />
                   {editingFeed === feed._id ? (
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2">
                       <input

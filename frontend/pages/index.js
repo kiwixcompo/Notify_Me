@@ -30,7 +30,7 @@ export default function Home() {
             <BriefcaseIcon className="w-7 h-7 text-indigo-400 ml-[-12px] mt-4 rotate-12" />
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold text-blue-800 mb-3 drop-shadow-sm tracking-tight">Notify Me</h1>
-          <p className="text-lg md:text-xl text-blue-700 mb-8 font-medium">Discover the latest remote jobs from your favorite sources—including <span className='font-semibold'>We Work Remotely</span>, Twitter, and more. Get instant alerts and manage your job feeds in one place. <span className='font-semibold'>No emails required!</span></p>
+          <p className="text-lg md:text-xl text-blue-700 mb-8 font-medium">Find your next remote opportunity. Get instant job alerts, manage your feeds, and stay ahead—no email required. Your job search, simplified.</p>
           <div className="flex flex-col md:flex-row justify-center gap-4 mb-6 w-full">
             <a href="/login" className="flex-1 px-8 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 hover:scale-105 active:scale-95 transition font-semibold text-lg text-center">Login</a>
             <a href="/register" className="flex-1 px-8 py-3 bg-white text-blue-700 border border-blue-600 rounded-lg shadow hover:bg-blue-50 hover:scale-105 active:scale-95 transition font-semibold text-lg text-center">Register</a>

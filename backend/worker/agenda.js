@@ -76,14 +76,15 @@ agenda.define('process notifications', async (job, done) => {
     
     for (const user of users) {
       for (const job of newJobs) {
-        // Case-insensitive keyword match in title or description
-        const match = user.jobPreferences.some(pref => {
-          const re = new RegExp(pref, 'i');
-          return re.test(job.title) || re.test(job.description);
+        // Expanded: check title, description, content, contentSnippet
+        const fields = [job.title, job.description, job.content, job.contentSnippet].map(f => (f || '').toLowerCase());
+        const matchedKeywords = user.jobPreferences.filter(pref => {
+          const kw = pref.toLowerCase();
+          return fields.some(field => field.includes(kw));
         });
         
-        if (match && !job.notifiedUsers.includes(user._id)) {
-          const sent = await sendJobNotification(user, job);
+        if (matchedKeywords.length > 0 && !job.notifiedUsers.includes(user._id)) {
+          const sent = await sendJobNotification(user, job, matchedKeywords);
           if (sent) {
             job.notifiedUsers.push(user._id);
             await job.save();
