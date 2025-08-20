@@ -1,5 +1,6 @@
 const Job = require('../models/Job');
 const User = require('../models/User');
+const searchService = require('../services/searchService');
 
 // GET /api/jobs - Get jobs for a specific date or today
 async function getUserJobs(req, res, next) {
@@ -220,4 +221,25 @@ async function getJobStats(req, res, next) {
   }
 }
 
-module.exports = { getUserJobs, getJobCalendar, getJobStats }; 
+// GET /api/jobs/search - Real-time job search from multiple sources
+async function searchJobsRealTime(req, res, next) {
+  try {
+    const { query = '', limit = 50 } = req.query;
+    
+    // Get real-time search results
+    const searchResults = await searchService.searchJobs(query, parseInt(limit));
+    
+    res.json({
+      success: true,
+      jobs: searchResults,
+      total: searchResults.length,
+      query,
+      sources: searchResults.map(job => job.source)
+    });
+  } catch (err) {
+    console.error('Error in searchJobsRealTime:', err);
+    res.status(500).json({ error: 'Failed to search jobs' });
+  }
+}
+
+module.exports = { getUserJobs, getJobCalendar, getJobStats, searchJobsRealTime }; 

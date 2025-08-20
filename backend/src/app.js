@@ -38,6 +38,8 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/user', require('./routes/user'));
 app.use('/api/jobs', require('./routes/jobs'));
+app.use('/api/scholarships', require('./routes/scholarships'));
+app.use('/api/predefined-feeds', require('./routes/predefinedFeeds'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

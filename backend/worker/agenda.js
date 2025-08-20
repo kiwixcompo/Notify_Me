@@ -1,9 +1,10 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Agenda = require('agenda');
-const { fetchJobsFromRSS } = require('../src/services/rssService');
+const { fetchJobsFromRSS, fetchScholarshipsFromRSS } = require('../src/services/rssService');
 const { sendJobNotification } = require('../src/services/emailService');
 const Job = require('../src/models/Job');
+const Scholarship = require('../src/models/Scholarship');
 const User = require('../src/models/User');
 const crypto = require('crypto');
 const RssFeed = require('../src/models/RssFeed');
@@ -18,15 +19,18 @@ function getWWRJobId(job) {
 
 agenda.define('poll rss and notify', async (job, done) => {
   try {
-    console.log('Polling all RSS feeds...');
-    // Fetch all unique feed URLs from all users
-    const feeds = await RssFeed.find({});
-    const jobs = await fetchJobsFromRSS(feeds);
+    console.log('Polling all RSS and XML feeds...');
+    
+    // Fetch job feeds (both RSS and XML)
+    const jobFeeds = await RssFeed.find({ type: 'job' });
+    const jobs = await fetchJobsFromRSS(jobFeeds);
     let newJobs = [];
+    
     for (const rssJob of jobs) {
       const wwrJobId = getWWRJobId(rssJob);
       let dbJob = await Job.findOne({ wwrJobId });
       if (!dbJob) {
+        const source = rssJob.isXML ? 'xml' : 'rss';
         dbJob = await Job.create({
           wwrJobId,
           title: rssJob.title,
@@ -35,20 +39,55 @@ agenda.define('poll rss and notify', async (job, done) => {
           publishedDate: new Date(rssJob.pubDate),
           firstSeen: new Date(),
           notifiedUsers: [],
-          source: 'rss',
+          source: source,
           feedUrl: rssJob.feedUrl || null
         });
         newJobs.push(dbJob);
       }
     }
+    
     if (newJobs.length === 0) {
-      console.log('No new RSS jobs found.');
+      console.log('No new RSS/XML jobs found.');
     } else {
-      console.log(`Found ${newJobs.length} new RSS jobs.`);
+      console.log(`Found ${newJobs.length} new RSS/XML jobs.`);
     }
+    
+    // Fetch scholarship feeds (both RSS and XML)
+    const scholarshipFeeds = await RssFeed.find({ type: 'scholarship' });
+    const scholarships = await fetchScholarshipsFromRSS(scholarshipFeeds);
+    let newScholarships = [];
+    
+    for (const rssScholarship of scholarships) {
+      const scholarshipId = getWWRJobId(rssScholarship); // Reuse the same function
+      let dbScholarship = await Scholarship.findOne({ 
+        title: rssScholarship.title,
+        link: rssScholarship.link
+      });
+      
+      if (!dbScholarship) {
+        // Extract scholarship details using the scholarship controller logic
+        const { processScholarshipFromRSS } = require('../src/controllers/scholarshipController');
+        
+        // Find the feed that this scholarship came from
+        const feed = scholarshipFeeds.find(f => f.url === rssScholarship.feedUrl);
+        if (feed) {
+          const processedScholarship = await processScholarshipFromRSS(rssScholarship, feed._id);
+          if (processedScholarship) {
+            newScholarships.push(processedScholarship);
+          }
+        }
+      }
+    }
+    
+    if (newScholarships.length === 0) {
+      console.log('No new RSS/XML scholarships found.');
+    } else {
+      console.log(`Found ${newScholarships.length} new RSS/XML scholarships.`);
+    }
+    
     done();
   } catch (err) {
-    console.error('RSS worker error:', err);
+    console.error('RSS/XML worker error:', err);
     done(err);
   }
 });
@@ -111,5 +150,5 @@ agenda.define('process notifications', async (job, done) => {
   // Schedule jobs
   await agenda.every('10 minutes', 'poll rss and notify');
   await agenda.every('5 minutes', 'process notifications');
-  console.log('Agenda worker started (RSS only).');
+  console.log('Agenda worker started (RSS/XML for jobs and scholarships).');
 })(); 
