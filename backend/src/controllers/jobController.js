@@ -7,54 +7,139 @@ async function getUserJobs(req, res, next) {
   try {
     const userId = req.userId;
     const User = require('../models/User');
+    const RssFeed = require('../models/RssFeed');
+    const { fetchItemsFromMultipleSources } = require('../services/rssService');
+    
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+    
     const { date, last24h } = req.query;
-    let jobs = [];
+    
+    // Get user's job feeds
+    const userFeeds = await RssFeed.find({ user: userId, type: 'job' });
+    
+    if (userFeeds.length === 0) {
+      return res.json({
+        jobs: [],
+        message: 'No job feeds configured. Please add some RSS feeds in preferences.',
+        totalJobs: 0
+      });
+    }
+    
+    // Fetch jobs from user's RSS feeds
+    console.log(`Fetching jobs from ${userFeeds.length} feeds for user ${userId}`);
+    const rssJobs = await fetchItemsFromMultipleSources(userFeeds, 'job');
+    
+    // Convert RSS jobs to the expected format
+    let jobs = rssJobs.map(rssJob => ({
+      title: rssJob.title,
+      link: rssJob.link,
+      description: rssJob.description,
+      publishedDate: rssJob.pubDate ? new Date(rssJob.pubDate) : new Date(),
+      source: rssJob.isXML ? 'xml' : rssJob.isJSON ? 'json' : rssJob.isCSV ? 'csv' : 'rss',
+      feedUrl: rssJob.feedUrl,
+      feedName: rssJob.feedName,
+      categories: rssJob.categories || [],
+      guid: rssJob.guid,
+      // Add format indicators for frontend
+      isXML: rssJob.isXML,
+      isJSON: rssJob.isJSON,
+      isCSV: rssJob.isCSV,
+      isCodeBased: rssJob.isCodeBased
+    }));
+    
+    // Filter by date if specified
     if (last24h === 'true') {
-      // Fetch jobs from the last 24 hours
       const now = new Date();
       const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      jobs = await Job.find({
-        publishedDate: { $gte: dayAgo, $lte: now }
-      }).sort({ publishedDate: -1 });
+      jobs = jobs.filter(job => job.publishedDate >= dayAgo && job.publishedDate <= now);
+      jobs.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+      
       return res.json({
         jobs,
         last24h: true,
-        totalJobs: jobs.length
+        totalJobs: jobs.length,
+        feedsCount: userFeeds.length
       });
     }
-    let targetDate;
+    
     if (date) {
       // Parse as local time (YYYY-MM-DD)
       const [yyyy, mm, dd] = date.split('-');
-      targetDate = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+      const targetDate = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
       if (isNaN(targetDate.getTime())) {
         return res.status(400).json({ error: 'Invalid date format' });
       }
-    } else {
-      targetDate = new Date();
+      
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      jobs = jobs.filter(job => {
+        const jobDate = new Date(job.publishedDate);
+        return jobDate >= startOfDay && jobDate <= endOfDay;
+      });
+      
+      jobs.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+      
+      return res.json({
+        jobs,
+        date: `${startOfDay.getFullYear()}-${String(startOfDay.getMonth() + 1).padStart(2, '0')}-${String(startOfDay.getDate()).padStart(2, '0')}`,
+        totalJobs: jobs.length,
+        feedsCount: userFeeds.length
+      });
     }
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    jobs = await Job.find({
-      publishedDate: {
-        $gte: startOfDay,
-        $lte: endOfDay
-      }
-    }).sort({ publishedDate: -1 });
+    
+    // Default: return all jobs from today
+    const today = new Date();
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+    
+    jobs = jobs.filter(job => {
+      const jobDate = new Date(job.publishedDate);
+      return jobDate >= startOfToday && jobDate <= endOfToday;
+    });
+    
+    // If no jobs today, return recent jobs (last 7 days)
+    if (jobs.length === 0) {
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      jobs = rssJobs.map(rssJob => ({
+        title: rssJob.title,
+        link: rssJob.link,
+        description: rssJob.description,
+        publishedDate: rssJob.pubDate ? new Date(rssJob.pubDate) : new Date(),
+        source: rssJob.isXML ? 'xml' : rssJob.isJSON ? 'json' : rssJob.isCSV ? 'csv' : 'rss',
+        feedUrl: rssJob.feedUrl,
+        feedName: rssJob.feedName,
+        categories: rssJob.categories || [],
+        guid: rssJob.guid,
+        isXML: rssJob.isXML,
+        isJSON: rssJob.isJSON,
+        isCSV: rssJob.isCSV,
+        isCodeBased: rssJob.isCodeBased
+      })).filter(job => {
+        const jobDate = new Date(job.publishedDate);
+        return jobDate >= weekAgo;
+      });
+    }
+    
+    jobs.sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate));
+    
     res.json({
       jobs,
-      date: `${startOfDay.getFullYear()}-${String(startOfDay.getMonth() + 1).padStart(2, '0')}-${String(startOfDay.getDate()).padStart(2, '0')}`,
-      totalJobs: jobs.length
+      date: `${startOfToday.getFullYear()}-${String(startOfToday.getMonth() + 1).padStart(2, '0')}-${String(startOfToday.getDate()).padStart(2, '0')}`,
+      totalJobs: jobs.length,
+      feedsCount: userFeeds.length,
+      message: jobs.length === 0 ? 'No recent jobs found from your feeds' : undefined
     });
   } catch (err) {
     console.error('Error in getUserJobs:', err);
-    next(err);
+    res.status(500).json({ error: 'Failed to fetch jobs from your feeds' });
   }
 }
 

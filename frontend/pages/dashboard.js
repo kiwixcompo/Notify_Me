@@ -3,15 +3,10 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import Layout from '../components/Layout';
 import JobCard from '../components/JobCard';
+import ScholarshipCard from '../components/ScholarshipCard';
 import { BriefcaseIcon, FunnelIcon, ClockIcon, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
 
-// Try to import Capacitor Local Notifications if available
-let CapacitorLocalNotifications = null;
-let CapacitorPushNotifications = null;
-try {
-  CapacitorLocalNotifications = require('@capacitor/local-notifications');
-  CapacitorPushNotifications = require('@capacitor/push-notifications');
-} catch {}
+// Note: Capacitor modules removed for web compatibility
 
 export default function Dashboard() {
   const router = useRouter();
@@ -421,21 +416,9 @@ export default function Dashboard() {
     const title = `New ${contentType}: ${item.title}`;
     const body = `From: ${feedName}`;
     const url = item.link || item.guid || '';
-    // Try Capacitor Local Notifications first
-    if (CapacitorLocalNotifications && CapacitorLocalNotifications.LocalNotifications) {
-      await CapacitorLocalNotifications.LocalNotifications.schedule({
-        notifications: [
-          {
-            title,
-            body,
-            id: Date.now(),
-            smallIcon: 'ic_launcher',
-            actionTypeId: '',
-            extra: { url },
-          },
-        ],
-      });
-    } else if (typeof window !== 'undefined' && 'Notification' in window) {
+    
+    // Use browser notifications
+    if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'granted') {
         const n = new Notification(title, {
           body,
@@ -492,110 +475,29 @@ export default function Dashboard() {
     }
   }, [contentType, isClient]);
 
-  // Listen for Capacitor notification taps (deep linking)
+  // Handle browser notification clicks
   useEffect(() => {
     if (!isClient) return;
     
-    if (CapacitorLocalNotifications && CapacitorLocalNotifications.LocalNotifications) {
-      CapacitorLocalNotifications.LocalNotifications.addListener('localNotificationActionPerformed', event => {
-        const url = event?.notification?.extra?.url;
-        if (url) window.open(url, '_blank');
-      });
-    }
-    // Fallback for browser notifications
+    // Browser notifications click handler
     if (typeof window !== 'undefined' && 'Notification' in window) {
-      window.onclick = event => {
-        // If a notification is clicked, try to open the item link
-        if (event.target && event.target.data && event.target.data.url) {
-          window.open(event.target.data.url, '_blank');
-        }
-      };
+      // Note: Browser notification clicks are handled in the triggerNotification function
     }
   }, [isClient]);
 
-  // Register for push notifications on Android (Capacitor)
+  // Browser notification permissions
   useEffect(() => {
-    if (!isClient || !CapacitorPushNotifications || !CapacitorPushNotifications.PushNotifications) return;
-    CapacitorPushNotifications.PushNotifications.requestPermissions().then(result => {
-      if (result.receive === 'granted') {
-        CapacitorPushNotifications.PushNotifications.register();
+    if (!isClient) return;
+    
+    // Request notification permission for browser notifications
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
       }
-    });
-    // On registration, get the FCM token
-    CapacitorPushNotifications.PushNotifications.addListener('registration', token => {
-      console.log('Push registration token:', token.value);
-      // TODO: Optionally send token.value to your backend for targeted notifications
-    });
-    // On registration error
-    CapacitorPushNotifications.PushNotifications.addListener('registrationError', err => {
-      console.error('Push registration error:', err);
-    });
-    // Handle incoming push notifications
-    CapacitorPushNotifications.PushNotifications.addListener('pushNotificationReceived', notification => {
-      console.log('Push notification received:', notification);
-      // Optionally show a local notification or update UI
-    });
-    // Handle notification tap (deep linking)
-    CapacitorPushNotifications.PushNotifications.addListener('pushNotificationActionPerformed', notification => {
-      const url = notification?.notification?.data?.url;
-      if (url) window.open(url, '_blank');
-    });
+    }
   }, [isClient]);
 
-  // Render scholarship card component
-  const ScholarshipCard = ({ scholarship }) => (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-md p-5 hover:shadow-xl hover:border-blue-400 transition cursor-pointer">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="font-bold text-lg text-gray-900 line-clamp-2 mb-2">
-          {scholarship.title}
-        </h3>
-        {scholarship.amount && (
-          <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded-full">
-            {scholarship.amount}
-          </span>
-        )}
-      </div>
-      
-      {scholarship.description && (
-        <p className="text-gray-700 mb-3 line-clamp-3">
-          {scholarship.description}
-        </p>
-      )}
-      
-      <div className="flex flex-wrap gap-2 mb-3">
-        {scholarship.level && (
-          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-            {scholarship.level}
-          </span>
-        )}
-        {scholarship.country && (
-          <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">
-            {scholarship.country}
-          </span>
-        )}
-        {scholarship.field && (
-          <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded">
-            {scholarship.field}
-          </span>
-        )}
-      </div>
-      
-      {scholarship.deadline && (
-        <div className="text-sm text-red-600 font-medium mb-2">
-          Deadline: {new Date(scholarship.deadline).toLocaleDateString()}
-        </div>
-      )}
-      
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-gray-500">
-          {scholarship.pubDate && formatDate(scholarship.pubDate)}
-        </span>
-        <span className="text-blue-600 font-semibold text-sm underline">
-          View Details
-        </span>
-      </div>
-    </div>
-  );
+
 
   return (
     <Layout>
@@ -645,8 +547,13 @@ export default function Dashboard() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
               onClick={() => {
-                setContentType('job');
-                localStorage.setItem('userPreference', 'job');
+                if (contentType !== 'job') {
+                  setLoading(true);
+                  setJobs([]);
+                  setScholarships([]);
+                  setContentType('job');
+                  localStorage.setItem('userPreference', 'job');
+                }
               }}
             >
               <BriefcaseIcon className="w-5 h-5 mr-2" />
@@ -659,8 +566,13 @@ export default function Dashboard() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
               onClick={() => {
-                setContentType('scholarship');
-                localStorage.setItem('userPreference', 'scholarship');
+                if (contentType !== 'scholarship') {
+                  setLoading(true);
+                  setJobs([]);
+                  setScholarships([]);
+                  setContentType('scholarship');
+                  localStorage.setItem('userPreference', 'scholarship');
+                }
               }}
             >
               <AcademicCapIcon className="w-5 h-5 mr-2" />
@@ -701,12 +613,20 @@ export default function Dashboard() {
           </div>
         )}
         
-        {/* Items Grid */}
+        {/* Loading State */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600">Loading {contentType === 'job' ? 'jobs' : 'scholarships'}...</p>
+          </div>
+        )}
+
+        {/* Items Grid - Jobs */}
         {!loading && contentType === 'job' && jobs.length > 0 && (
           <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {jobs.map(job => (
+            {jobs.map((job, index) => (
               <JobCard
-                key={job.wwrJobId || job._id}
+                key={job.wwrJobId || job._id || job.guid || job.link || `job-${index}`}
                 job={job}
                 showFeed={true}
               />
@@ -714,14 +634,38 @@ export default function Dashboard() {
           </div>
         )}
         
+        {/* Empty State - Jobs */}
+        {!loading && contentType === 'job' && jobs.length === 0 && (
+          <div className="text-center py-12">
+            <BriefcaseIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No jobs found</h3>
+            <p className="text-gray-500 mb-4">
+              We couldn't find any jobs from your feeds for today. Try checking your preferences or adding more feeds.
+            </p>
+          </div>
+        )}
+        
+        {/* Items Grid - Scholarships */}
         {!loading && contentType === 'scholarship' && scholarships.length > 0 && (
           <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {scholarships.map(scholarship => (
+            {scholarships.map((scholarship, index) => (
               <ScholarshipCard
-                key={scholarship._id}
+                key={scholarship._id || scholarship.guid || scholarship.link || `scholarship-${index}`}
                 scholarship={scholarship}
+                showFeed={true}
               />
             ))}
+          </div>
+        )}
+        
+        {/* Empty State - Scholarships */}
+        {!loading && contentType === 'scholarship' && scholarships.length === 0 && (
+          <div className="text-center py-12">
+            <AcademicCapIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No scholarships found</h3>
+            <p className="text-gray-500 mb-4">
+              We couldn't find any scholarships from your feeds for today. Try checking your preferences or adding more feeds.
+            </p>
           </div>
         )}
         

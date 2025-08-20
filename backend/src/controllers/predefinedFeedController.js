@@ -34,7 +34,45 @@ exports.getCategories = async (req, res) => {
     
     res.json({ categories: Object.values(categories) });
   } catch (error) {
+    console.error('Error fetching predefined feed categories:', error);
     res.status(500).json({ error: 'Failed to fetch predefined feed categories' });
+  }
+};
+
+// Auto-add default feeds for new users
+exports.addDefaultFeedsForUser = async (userId, type = 'job') => {
+  try {
+    // Get default feeds for the specified type
+    const defaultFeeds = await PredefinedFeed.find({
+      category: type === 'job' ? 'default-jobs' : 'default-scholarships',
+      type: type,
+      isActive: true
+    });
+    
+    // Check which feeds the user doesn't have yet
+    const existingFeeds = await RssFeed.find({ user: userId, type: type });
+    const existingUrls = existingFeeds.map(feed => feed.url);
+    
+    const feedsToAdd = defaultFeeds.filter(feed => !existingUrls.includes(feed.url));
+    
+    // Add missing default feeds
+    const newFeeds = feedsToAdd.map(feed => ({
+      user: userId,
+      url: feed.url,
+      name: feed.name,
+      type: feed.type,
+      category: feed.category
+    }));
+    
+    if (newFeeds.length > 0) {
+      await RssFeed.insertMany(newFeeds);
+      console.log(`Added ${newFeeds.length} default ${type} feeds for user ${userId}`);
+    }
+    
+    return newFeeds.length;
+  } catch (error) {
+    console.error('Error adding default feeds for user:', error);
+    return 0;
   }
 };
 

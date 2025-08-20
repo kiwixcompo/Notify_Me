@@ -3,9 +3,9 @@ const router = express.Router();
 const { requireAuth } = require('../controllers/userController');
 const scholarshipController = require('../controllers/scholarshipController');
 
-// Public routes
-router.get('/', scholarshipController.getScholarships);
-router.get('/calendar', scholarshipController.getScholarshipCalendar);
+// Protected routes
+router.get('/', requireAuth, scholarshipController.getScholarships);
+router.get('/calendar', requireAuth, scholarshipController.getScholarshipCalendar);
 router.get('/search', scholarshipController.searchScholarshipsRealTime);
 
 // Protected routes

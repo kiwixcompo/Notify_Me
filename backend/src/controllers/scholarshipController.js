@@ -5,50 +5,206 @@ const searchService = require('../services/searchService');
 // Get scholarships with filtering
 exports.getScholarships = async (req, res) => {
   try {
+    const userId = req.userId;
     const { date, last24h, category, level, country, field } = req.query;
+    const { fetchItemsFromMultipleSources } = require('../services/rssService');
     
-    let query = {};
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' });
+    }
     
-    // Date filtering
+    // Get user's scholarship feeds
+    const userFeeds = await RssFeed.find({ user: userId, type: 'scholarship' });
+    
+    if (userFeeds.length === 0) {
+      return res.json({
+        scholarships: [],
+        message: 'No scholarship feeds configured. Please add some RSS feeds in preferences.',
+        totalScholarships: 0
+      });
+    }
+    
+    // Fetch scholarships from user's RSS feeds
+    console.log(`Fetching scholarships from ${userFeeds.length} feeds for user ${userId}`);
+    const rssScholarships = await fetchItemsFromMultipleSources(userFeeds, 'scholarship');
+    
+    // Convert RSS scholarships to the expected format
+    let scholarships = rssScholarships.map(rssScholarship => {
+      // Extract scholarship details from title/description
+      const title = rssScholarship.title || '';
+      const description = rssScholarship.description || '';
+      const content = rssScholarship.content || '';
+      
+      // Try to extract amount, deadline, level, etc. from content
+      let amount = '';
+      let deadline = null;
+      let scholarshipLevel = '';
+      let scholarshipCountry = '';
+      let scholarshipField = '';
+      
+      // Extract amount (common patterns)
+      const amountPatterns = [
+        /\$[\d,]+(?:\.\d{2})?/g,
+        /USD\s*[\d,]+/gi,
+        /EUR\s*[\d,]+/gi,
+        /GBP\s*[\d,]+/gi,
+        /[\d,]+\s*(?:dollars?|euros?|pounds?)/gi
+      ];
+      
+      for (const pattern of amountPatterns) {
+        const matches = content.match(pattern) || description.match(pattern) || title.match(pattern);
+        if (matches) {
+          amount = matches[0];
+          break;
+        }
+      }
+      
+      // Extract deadline
+      const deadlinePatterns = [
+        /deadline[:\s]+([^.\n]+)/gi,
+        /apply\s+by[:\s]+([^.\n]+)/gi,
+        /application\s+deadline[:\s]+([^.\n]+)/gi,
+        /due\s+date[:\s]+([^.\n]+)/gi
+      ];
+      
+      for (const pattern of deadlinePatterns) {
+        const match = content.match(pattern) || description.match(pattern);
+        if (match) {
+          const dateStr = match[1].trim();
+          const parsedDate = new Date(dateStr);
+          if (!isNaN(parsedDate.getTime())) {
+            deadline = parsedDate;
+            break;
+          }
+        }
+      }
+      
+      // Extract level
+      const levelPatterns = [
+        /undergraduate/gi,
+        /graduate/gi,
+        /phd|doctorate/gi,
+        /masters?/gi,
+        /bachelor/gi,
+        /postgraduate/gi
+      ];
+      
+      for (const pattern of levelPatterns) {
+        if (content.match(pattern) || description.match(pattern) || title.match(pattern)) {
+          scholarshipLevel = pattern.source.replace(/[()]/g, '').toLowerCase();
+          break;
+        }
+      }
+      
+      // Extract country
+      const countryPatterns = [
+        /USA|United States|America/gi,
+        /UK|United Kingdom|England/gi,
+        /Canada/gi,
+        /Australia/gi,
+        /Germany/gi,
+        /France/gi,
+        /Japan/gi,
+        /China/gi
+      ];
+      
+      for (const pattern of countryPatterns) {
+        if (content.match(pattern) || description.match(pattern) || title.match(pattern)) {
+          scholarshipCountry = pattern.source.replace(/[()|]/g, '').toLowerCase();
+          break;
+        }
+      }
+      
+      // Extract field of study
+      const fieldPatterns = [
+        /computer science|CS/gi,
+        /engineering/gi,
+        /medicine|medical/gi,
+        /business/gi,
+        /arts/gi,
+        /science/gi,
+        /mathematics|math/gi,
+        /physics/gi,
+        /chemistry/gi,
+        /biology/gi
+      ];
+      
+      for (const pattern of fieldPatterns) {
+        if (content.match(pattern) || description.match(pattern) || title.match(pattern)) {
+          scholarshipField = pattern.source.replace(/[()|]/g, '').toLowerCase();
+          break;
+        }
+      }
+      
+      return {
+        title: rssScholarship.title,
+        description: rssScholarship.description,
+        link: rssScholarship.link,
+        pubDate: rssScholarship.pubDate ? new Date(rssScholarship.pubDate) : new Date(),
+        categories: rssScholarship.categories || [],
+        feedUrl: rssScholarship.feedUrl,
+        feedName: rssScholarship.feedName,
+        guid: rssScholarship.guid,
+        // Extracted scholarship details
+        amount,
+        deadline,
+        level: scholarshipLevel,
+        country: scholarshipCountry,
+        field: scholarshipField,
+        // Add format indicators for frontend
+        isXML: rssScholarship.isXML,
+        isJSON: rssScholarship.isJSON,
+        isCSV: rssScholarship.isCSV,
+        isCodeBased: rssScholarship.isCodeBased
+      };
+    });
+    
+    // Apply filters
     if (last24h === 'true') {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      query.pubDate = { $gte: yesterday };
+      scholarships = scholarships.filter(s => new Date(s.pubDate) >= yesterday);
     } else if (date) {
       const startDate = new Date(date);
       const endDate = new Date(date);
       endDate.setDate(endDate.getDate() + 1);
-      query.pubDate = { $gte: startDate, $lt: endDate };
+      scholarships = scholarships.filter(s => {
+        const pubDate = new Date(s.pubDate);
+        return pubDate >= startDate && pubDate < endDate;
+      });
     }
     
-    // Category filtering
     if (category) {
-      query.categories = category;
+      scholarships = scholarships.filter(s => s.categories.includes(category));
     }
     
-    // Level filtering
     if (level) {
-      query.level = level;
+      scholarships = scholarships.filter(s => s.level === level);
     }
     
-    // Country filtering
     if (country) {
-      query.country = country;
+      scholarships = scholarships.filter(s => s.country === country);
     }
     
-    // Field filtering
     if (field) {
-      query.field = field;
+      scholarships = scholarships.filter(s => s.field === field);
     }
     
-    const scholarships = await Scholarship.find(query)
-      .populate('feed', 'name url')
-      .sort({ pubDate: -1 })
-      .limit(100);
+    // Sort by publication date (newest first)
+    scholarships.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
     
-    res.json({ scholarships });
+    // Limit results
+    scholarships = scholarships.slice(0, 100);
+    
+    res.json({ 
+      scholarships,
+      totalScholarships: scholarships.length,
+      feedsCount: userFeeds.length,
+      message: scholarships.length === 0 ? 'No scholarships found from your feeds' : undefined
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch scholarships' });
+    console.error('Error fetching scholarships:', error);
+    res.status(500).json({ error: 'Failed to fetch scholarships from your feeds' });
   }
 };
 
