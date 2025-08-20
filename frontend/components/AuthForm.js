@@ -23,11 +23,12 @@ export default function AuthForm({ mode }) {
     }
     setLoading(true);
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       if (mode === 'register') {
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, { email, password, name, phone });
+        await axios.post(`${apiUrl}/api/auth/register`, { email, password, name, phone });
         // Auto-login after registration
       }
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, { email, password });
+      const res = await axios.post(`${apiUrl}/api/auth/login`, { email, password });
       localStorage.setItem('token', res.data.token);
       router.replace('/dashboard');
     } catch (err) {

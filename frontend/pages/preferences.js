@@ -85,7 +85,8 @@ export default function Preferences() {
       return;
     }
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds?type=${activeTab === 'jobs' ? 'job' : 'scholarship'}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await axios.get(`${apiUrl}/api/user/rss-feeds?type=${activeTab === 'jobs' ? 'job' : 'scholarship'}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setFeeds(res.data.feeds || []);
@@ -103,10 +104,14 @@ export default function Preferences() {
   const fetchPredefinedCategories = async () => {
     setLoadingCategories(true);
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefined-feeds/categories?type=${activeTab === 'jobs' ? 'job' : 'scholarship'}`);
+      // Use environment variable or fallback to localhost for development
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await axios.get(`${apiUrl}/api/predefined-feeds/categories?type=${activeTab === 'jobs' ? 'job' : 'scholarship'}`);
       setPredefinedCategories(res.data.categories || []);
     } catch (err) {
       console.error('Failed to load predefined categories:', err);
+      // Set empty categories on error to prevent infinite loading
+      setPredefinedCategories([]);
     } finally {
       setLoadingCategories(false);
     }
@@ -115,7 +120,8 @@ export default function Preferences() {
   const fetchCategoryFeeds = async (category) => {
     setSelectedCategory(category);
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefined-feeds/categories/${activeTab === 'jobs' ? 'job' : 'scholarship'}/${category.name}`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await axios.get(`${apiUrl}/api/predefined-feeds/categories/${activeTab === 'jobs' ? 'job' : 'scholarship'}/${category.name}`);
       setCategoryFeeds(res.data.feeds || []);
     } catch (err) {
       console.error('Failed to load category feeds:', err);
@@ -127,7 +133,8 @@ export default function Preferences() {
     setError('');
     const token = localStorage.getItem('token');
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/predefined-feeds/add-to-user`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      await axios.post(`${apiUrl}/api/predefined-feeds/add-to-user`, {
         predefinedFeedId
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -153,7 +160,8 @@ export default function Preferences() {
     setError('');
     try {
       const endpoint = activeTab === 'jobs' ? '/api/jobs/search' : '/api/scholarships/search';
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const response = await axios.get(`${apiUrl}${endpoint}`, {
         params: { query: searchQuery, limit: 20 }
       });
       
@@ -180,7 +188,8 @@ export default function Preferences() {
       return;
     }
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await axios.get(`${apiUrl}/api/user/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfile({ name: res.data.name, email: res.data.email });
@@ -197,7 +206,8 @@ export default function Preferences() {
     setProfileSuccess(false);
     const token = localStorage.getItem('token');
     try {
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      await axios.put(`${apiUrl}/api/user/profile`, {
         name: profile.name,
         email: profile.email,
         password: profilePassword || undefined
@@ -225,7 +235,8 @@ export default function Preferences() {
     }
     const token = localStorage.getItem('token');
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      await axios.post(`${apiUrl}/api/user/rss-feeds`, {
         url: newFeedUrl,
         name: newFeedName,
         apiBackupUrl: newFeedApi,
@@ -251,7 +262,8 @@ export default function Preferences() {
     setSuccess(false);
     const token = localStorage.getItem('token');
     try {
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds/${id}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      await axios.delete(`${apiUrl}/api/user/rss-feeds/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSuccess(true);
@@ -276,7 +288,8 @@ export default function Preferences() {
     setSuccess(false);
     const token = localStorage.getItem('token');
     try {
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds/${id}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      await axios.put(`${apiUrl}/api/user/rss-feeds/${id}`, {
         url: editUrl,
         name: editName,
         apiBackupUrl: editApi
@@ -375,7 +388,8 @@ export default function Preferences() {
     let successCount = 0, failCount = 0, errors = [];
     for (const feed of uniqueFeedsToAdd) {
       try {
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds`, {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        await axios.post(`${apiUrl}/api/user/rss-feeds`, {
           ...feed,
           type: activeTab === 'jobs' ? 'job' : 'scholarship'
         }, {
@@ -429,8 +443,9 @@ export default function Preferences() {
     setSuccess(false);
     const token = localStorage.getItem('token');
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       await Promise.all(selectedFeeds.map(id =>
-        axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds/${id}`, {
+        axios.delete(`${apiUrl}/api/user/rss-feeds/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ));

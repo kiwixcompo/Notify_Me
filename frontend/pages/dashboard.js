@@ -76,7 +76,8 @@ export default function Dashboard() {
     try {
       const token = localStorage.getItem('token');
       // 1. Get feeds list
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/user/rss-feeds?type=${contentType}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await axios.get(`${apiUrl}/api/user/rss-feeds?type=${contentType}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const feeds = res.data.feeds || [];
@@ -86,7 +87,7 @@ export default function Dashboard() {
         const feed = feeds[i];
         try {
           const endpoint = contentType === 'job' ? 'rss-feeds' : 'scholarships';
-          const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/user/${endpoint}/${feed._id}/raw`, {
+          const res = await axios.get(`${apiUrl}/api/user/${endpoint}/${feed._id}/raw`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           results.push(res.data);
@@ -153,7 +154,8 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError('');
-      let url = `${process.env.NEXT_PUBLIC_API_URL}/api/jobs?`;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      let url = `${apiUrl}/api/jobs?`;
       if (showLast24h) {
         url += 'last24h=true';
       } else {
@@ -175,7 +177,8 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError('');
-      let url = `${process.env.NEXT_PUBLIC_API_URL}/api/scholarships?`;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      let url = `${apiUrl}/api/scholarships?`;
       if (showLast24h) {
         url += 'last24h=true';
       } else {
@@ -196,8 +199,9 @@ export default function Dashboard() {
   const fetchCalendarData = async (token) => {
     try {
       const endpoint = contentType === 'job' ? 'jobs' : 'scholarships';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/${endpoint}/calendar?month=${currentMonth}&year=${currentYear}&filterByPreferences=${filterByPreferences}`,
+        `${apiUrl}/api/${endpoint}/calendar?month=${currentMonth}&year=${currentYear}&filterByPreferences=${filterByPreferences}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }

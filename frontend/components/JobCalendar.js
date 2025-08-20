@@ -23,8 +23,9 @@ export default function JobCalendar({ onDateSelect, selectedDate }) {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/jobs/calendar?month=${currentMonth}&year=${currentYear}&filterByPreferences=${filterByPreferences}`,
+        `${apiUrl}/api/jobs/calendar?month=${currentMonth}&year=${currentYear}&filterByPreferences=${filterByPreferences}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
