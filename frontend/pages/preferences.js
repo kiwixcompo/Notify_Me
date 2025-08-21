@@ -201,10 +201,24 @@ export default function Preferences() {
     
     // IMMEDIATELY load embedded category feeds for instant display
     const type = activeTab === 'jobs' ? 'job' : 'scholarship';
-    const embeddedCategory = embeddedPredefinedFeeds[type]?.[category.name];
+    
+    // Find the embedded category by matching the category name or category property
+    let embeddedCategory = null;
+    for (const [key, cat] of Object.entries(embeddedPredefinedFeeds[type] || {})) {
+      if (cat.name === category.name || cat.category === category.name || key === category.name) {
+        embeddedCategory = cat;
+        break;
+      }
+    }
+    
+    console.log('Category clicked:', category.name);
+    console.log('Found embedded category:', embeddedCategory);
+    
     if (embeddedCategory) {
       setCategoryFeeds(embeddedCategory.feeds || []);
+      console.log('Setting category feeds:', embeddedCategory.feeds);
     } else {
+      console.log('No embedded category found, setting empty feeds');
       setCategoryFeeds([]);
     }
     
@@ -233,9 +247,20 @@ export default function Preferences() {
       try {
         // For embedded feeds, add directly to user's feeds via API
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        // Find the actual feed name from the embedded feeds
+        let feedName = predefinedFeedId;
+        const type = activeTab === 'jobs' ? 'job' : 'scholarship';
+        for (const [key, cat] of Object.entries(embeddedPredefinedFeeds[type] || {})) {
+          const feed = cat.feeds?.find(f => f._id === predefinedFeedId);
+          if (feed) {
+            feedName = feed.name;
+            break;
+          }
+        }
+        
         await axios.post(`${apiUrl}/api/user/rss-feeds`, {
           url: feedUrl,
-          name: predefinedFeedId, // Will be updated with actual name
+          name: feedName,
           type: activeTab === 'jobs' ? 'job' : 'scholarship',
           category: activeTab === 'jobs' ? 'default-jobs' : 'default-scholarships'
         }, {
