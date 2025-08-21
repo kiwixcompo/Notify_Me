@@ -73,6 +73,14 @@ export default function Preferences() {
     if (!isClient) return;
     fetchFeeds();
     fetchProfile();
+    
+    // IMMEDIATELY load embedded feeds for instant display
+    const type = activeTab === 'jobs' ? 'job' : 'scholarship';
+    const embeddedCategories = Object.values(embeddedPredefinedFeeds[type] || {});
+    setPredefinedCategories(embeddedCategories);
+    console.log('Embedded feeds loaded immediately:', embeddedCategories);
+    
+    // Then try API in background
     fetchPredefinedCategories();
   }, [activeTab, isClient]);
 
@@ -161,41 +169,57 @@ export default function Preferences() {
     }
   };
 
+  // Debug: Log embedded feeds to console
+  console.log('Embedded predefined feeds loaded:', embeddedPredefinedFeeds);
+
   const fetchPredefinedCategories = async () => {
     setLoadingCategories(true);
+    
+    // IMMEDIATELY load embedded feeds for instant display
+    const type = activeTab === 'jobs' ? 'job' : 'scholarship';
+    const embeddedCategories = Object.values(embeddedPredefinedFeeds[type] || {});
+    setPredefinedCategories(embeddedCategories);
+    setLoadingCategories(false);
+    
+    // Then try to fetch from API in the background (for local development)
     try {
-      // Try to fetch from API first (for local development with backend)
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const res = await axios.get(`${apiUrl}/api/predefined-feeds/categories?type=${activeTab === 'jobs' ? 'job' : 'scholarship'}`);
-      setPredefinedCategories(res.data.categories || []);
+      
+      // Only update if API returns more data than embedded feeds
+      if (res.data.categories && res.data.categories.length > embeddedCategories.length) {
+        setPredefinedCategories(res.data.categories);
+      }
     } catch (err) {
-      console.log('API not available, using embedded predefined feeds');
-      // Fallback to embedded feeds when API is not available (online version)
-      const type = activeTab === 'jobs' ? 'job' : 'scholarship';
-      const categories = Object.values(embeddedPredefinedFeeds[type] || {});
-      setPredefinedCategories(categories);
-    } finally {
-      setLoadingCategories(false);
+      console.log('API not available, using embedded predefined feeds (already loaded)');
+      // Embedded feeds are already loaded, so no action needed
     }
   };
 
   const fetchCategoryFeeds = async (category) => {
     setSelectedCategory(category);
+    
+    // IMMEDIATELY load embedded category feeds for instant display
+    const type = activeTab === 'jobs' ? 'job' : 'scholarship';
+    const embeddedCategory = embeddedPredefinedFeeds[type]?.[category.name];
+    if (embeddedCategory) {
+      setCategoryFeeds(embeddedCategory.feeds || []);
+    } else {
+      setCategoryFeeds([]);
+    }
+    
+    // Then try to fetch from API in the background (for local development)
     try {
-      // Try to fetch from API first
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const res = await axios.get(`${apiUrl}/api/predefined-feeds/categories/${activeTab === 'jobs' ? 'job' : 'scholarship'}/${category.name}`);
-      setCategoryFeeds(res.data.feeds || []);
-    } catch (err) {
-      console.log('API not available, using embedded category feeds');
-      // Fallback to embedded feeds when API is not available
-      const type = activeTab === 'jobs' ? 'job' : 'scholarship';
-      const embeddedCategory = embeddedPredefinedFeeds[type]?.[category.name];
-      if (embeddedCategory) {
-        setCategoryFeeds(embeddedCategory.feeds || []);
-      } else {
-        setCategoryFeeds([]);
+      
+      // Only update if API returns more data than embedded feeds
+      if (res.data.feeds && res.data.feeds.length > (embeddedCategory?.feeds?.length || 0)) {
+        setCategoryFeeds(res.data.feeds);
       }
+    } catch (err) {
+      console.log('API not available, using embedded category feeds (already loaded)');
+      // Embedded feeds are already loaded, so no action needed
     }
   };
 
