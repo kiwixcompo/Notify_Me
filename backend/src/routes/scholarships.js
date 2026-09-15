@@ -4,6 +4,7 @@ const { requireAuth } = require('../controllers/userController');
 const scholarshipController = require('../controllers/scholarshipController');
 const { TARGET_SITES, crawlAllScholarshipSites } = require('../services/scholarshipCrawler');
 const Scholarship = require('../models/Scholarship');
+const axios = require('axios');
 
 // GET /api/scholarships/crawler/sites - List registered sites in config
 router.get('/crawler/sites', (req, res) => {
@@ -36,13 +37,13 @@ router.post('/crawler/save', requireAuth, async (req, res) => {
     const { item } = req.body;
     const scholarship = new Scholarship({
       title: item.title,
-      description: `[${item.source}] ${item.benefits?.join(', ') || 'Scholarship Opportunity'}. Location: ${item.matchedCountries?.join(', ') || 'International'}. Deadline: ${item.rawDeadline || 'Check Link'}`,
+      description: [] . Location: . Deadline: ,
       link: item.url,
       country: item.matchedCountries?.[0] || 'International',
       categories: [item.source, item.isFullyFunded ? 'Fully Funded' : 'Partially Funded'],
       amount: item.isFullyFunded ? 'Fully Funded (Tuition + Stipend)' : 'Tuition Support',
       deadline: item.deadline ? new Date(item.deadline) : null,
-      eligibility: item.benefits?.length ? `Benefits: ${item.benefits.join(', ')}` : 'See application portal',
+      eligibility: item.benefits?.length ? Benefits:  : 'See application portal',
       level: 'PhD / Postgraduate',
       field: item.isComputerScience ? 'Computer Science & Technology' : 'All Fields',
       createdAt: new Date()
@@ -56,29 +57,133 @@ router.post('/crawler/save', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/scholarships/analyze-fit - Candidate Alignment, PhD/CS Verification, Benefits, Roadmap & Cold Email
+// Node.js implementation of analyze-fit using Groq API directly
 router.post('/analyze-fit', requireAuth, async (req, res) => {
   try {
-    const axios = require('axios');
-    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
-    const response = await axios.post(`${aiServiceUrl}/scholarships/analyze-fit`, req.body, { timeout: 65000 });
-    res.json(response.data);
+    const { scholarship_text, candidate_profile, groq_api_key } = req.body;
+    
+    if (!groq_api_key) {
+      return res.status(400).json({ error: 'Groq API Key is required' });
+    }
+
+    const prompt = \
+ACT AS A DISTINGUISHED ACADEMIC ADVISOR AND POST-DOC MENTOR.
+Evaluate the alignment between the candidate and the PhD scholarship.
+
+Scholarship Details:
+\
+
+Candidate Profile:
+\
+
+RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
+{
+  "fitScore": 85,
+  "fitRationale": "Short paragraph explaining why.",
+  "isFullyFunded": true,
+  "isPhD": true,
+  "isComputerScience": true,
+  "missingRequirements": ["List of things they might need"],
+  "emailDraft": {
+    "salutation": "Dear Professor X,",
+    "opening": "Opening line",
+    "alignment": "Alignment line",
+    "callToAction": "Call to action",
+    "fullEmailText": "Full text of the email"
+  },
+  "researchProposalDraft": {
+    "title": "Proposed Title",
+    "backgroundAndGap": "Background...",
+    "methodology": "Methodology...",
+    "expectedContributions": "Contributions..."
+  }
+}
+\;
+
+    const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+      model: 'llama3-70b-8192',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2,
+      response_format: { type: 'json_object' }
+    }, {
+      headers: {
+        'Authorization': \Bearer \\,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    });
+
+    const content = response.data.choices[0].message.content;
+    const parsedData = JSON.parse(content);
+    res.json({ analysis: parsedData });
   } catch (error) {
     console.error('Scholarship fit analysis error:', error.message);
-    res.status(500).json({ error: error.response?.data?.error || error.message || 'Failed to evaluate scholarship alignment' });
+    res.status(500).json({ error: 'Failed to evaluate scholarship alignment using Groq' });
   }
 });
 
-// POST /api/scholarships/generate-cold-email - Standalone PI cold outreach generator
+// Node.js implementation of generate-cold-email using Groq API directly
 router.post('/generate-cold-email', requireAuth, async (req, res) => {
   try {
-    const axios = require('axios');
-    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
-    const response = await axios.post(`${aiServiceUrl}/scholarships/generate-cold-email`, req.body, { timeout: 30000 });
-    res.json(response.data);
+    const { project_title, university_or_lab, pi_name, project_summary, candidate_name, candidate_background, groq_api_key } = req.body;
+
+    if (!groq_api_key) {
+      return res.status(400).json({ error: 'Groq API Key is required' });
+    }
+
+    const prompt = \
+ACT AS A DISTINGUISHED ACADEMIC MENTOR WHO SPECIALIZES IN HELPING TOP RESEARCHERS CONTACT PRINCIPAL INVESTIGATORS (PIs).
+Write a personalized, high-converting cold outreach email to a potential PhD supervisor or lab director.
+
+KEY PRINCIPLES:
+- 'Research Partner' Framework: Treat the candidate as an intellectually rigorous collaborator, not a generic applicant begging for funding.
+- Open with the supervisor's specific research problem space, recent papers, or lab objectives.
+- Bridge the candidate's software engineering, systems design, and applied AI strengths into concrete solutions for the lab's technical bottlenecks.
+- Keep it concise, respectful of their time, and clear in call-to-action.
+
+DETAILS:
+- Project Title / Focus: \
+- University / Lab: \
+- Supervisor / PI: \
+- Project Summary: \
+- Candidate Background: \
+- Candidate Name: \
+
+RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
+{
+  "subjectLines": [
+    "Subject option 1 (specific and compelling)",
+    "Subject option 2 (direct and academic)",
+    "Subject option 3 (paper or problem-space focused)"
+  ],
+  "emailBody": "Full formatted email body with salutation, body paragraphs, and sign-off ready to copy and send",
+  "strategicTips": [
+    "Tip 1 (e.g. attach your CV)",
+    "Tip 2 (e.g. read their latest paper)",
+    "Tip 3 (e.g. follow up in 7 days)"
+  ]
+}
+\;
+
+    const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+      model: 'llama3-70b-8192',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      response_format: { type: 'json_object' }
+    }, {
+      headers: {
+        'Authorization': \Bearer \\,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    const content = response.data.choices[0].message.content;
+    const parsedData = JSON.parse(content);
+    res.json(parsedData);
   } catch (error) {
     console.error('Generate cold email error:', error.message);
-    res.status(500).json({ error: error.response?.data?.error || error.message || 'Failed to generate cold email' });
+    res.status(500).json({ error: 'Failed to generate cold email using Groq API' });
   }
 });
 
@@ -90,4 +195,4 @@ router.get('/search', scholarshipController.searchScholarshipsRealTime);
 // Protected routes
 router.get('/raw/:feedId', requireAuth, scholarshipController.getRawScholarshipFeed);
 
-module.exports = router; 
+module.exports = router;

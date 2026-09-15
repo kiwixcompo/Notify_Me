@@ -1,4 +1,4 @@
-﻿const axios = require('axios');
+const axios = require('axios');
 const cheerio = require('cheerio');
 const { parseOpportunityPost } = require('./linkedinCrawler');
 
@@ -19,20 +19,30 @@ function cleanText(str) {
  * 1. Direct GraphQL interception / Session Cookies (auth_token, ct0) if configured
  * 2. Curated Search & Syndicated Feed Interception without account ban risk
  */
-async function crawlXOpportunities({ query = '', type = 'all', maxResults = 15, authToken = null, ct0 = null } = {}) {
+async function crawlXOpportunities({ query = '', type = 'all', timeFilter = 'any', maxResults = 15, authToken = null, ct0 = null } = {}) {
   const cleanQ = cleanText(query) || 'Computer Science';
   const effectiveAuth = authToken || process.env.X_AUTH_TOKEN;
   const effectiveCt0 = ct0 || process.env.X_CT0_CSRF_TOKEN;
 
   const results = [];
 
+  // Construct Time Filter String for X Search
+  let timeStr = '';
+  if (timeFilter !== 'any') {
+    const d = new Date();
+    if (timeFilter === '24h') d.setDate(d.getDate() - 1);
+    else if (timeFilter === 'week') d.setDate(d.getDate() - 7);
+    else if (timeFilter === 'month') d.setMonth(d.getMonth() - 1);
+    timeStr = ` since:${d.toISOString().split('T')[0]}`;
+  }
+
   // If active user session cookies are provided, attempt internal GraphQL SearchTimeline
   if (effectiveAuth && effectiveCt0) {
     try {
       const graphqlUrl = 'https://x.com/i/api/graphql/NA58ukMGhhqiqxyAELXk5g/SearchTimeline';
       const searchTerms = type === 'scholarship'
-        ? `("PhD position" OR "scholarship" OR "fully funded") "${cleanQ}" -is:retweet`
-        : `("we are hiring" OR "looking for remote" OR "hiring") "${cleanQ}" -is:retweet`;
+        ? `("PhD position" OR "scholarship" OR "fully funded") "${cleanQ}" -is:retweet${timeStr}`
+        : `("we are hiring" OR "looking for remote" OR "hiring") "${cleanQ}" -is:retweet${timeStr}`;
 
       const variables = {
         rawQuery: searchTerms,
@@ -44,17 +54,13 @@ async function crawlXOpportunities({ query = '', type = 'all', maxResults = 15, 
       const res = await axios.get(graphqlUrl, {
         params: {
           variables: JSON.stringify(variables),
-          features: JSON.stringify({
-            responsive_web_graphql_timeline_navigation_enabled: true
-          })
+          features: JSON.stringify({ responsive_web_graphql_exclude_directive_enabled: true })
         },
         headers: {
           ...DEFAULT_HEADERS,
           'Authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
-          'Cookie': `auth_token=${effectiveAuth}; ct0=${effectiveCt0};`,
           'x-csrf-token': effectiveCt0,
-          'x-twitter-active-user': 'yes',
-          'x-twitter-auth-type': 'OAuth2Session'
+          'Cookie': `auth_token=${effectiveAuth}; ct0=${effectiveCt0};`
         },
         timeout: 10000
       });
@@ -156,7 +162,7 @@ async function crawlXOpportunities({ query = '', type = 'all', maxResults = 15, 
  * - Prevents account bans by avoiding global /search/posts checkpoint traps
  * - Allows scraping target public groups/pages with session cookie injection (c_user, xs)
  */
-async function crawlFacebookOpportunities({ query = '', type = 'all', targetGroupUrl = null, maxResults = 15, cUser = null, xsToken = null } = {}) {
+async function crawlFacebookOpportunities({ query = '', type = 'all', timeFilter = 'any', targetGroupUrl = null, maxResults = 15, cUser = null, xsToken = null } = {}) {
   const cleanQ = cleanText(query) || 'Computer Science';
   const results = [];
 

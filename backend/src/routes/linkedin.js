@@ -63,10 +63,11 @@ router.get('/posts', requireAuth, async (req, res) => {
 router.get('/x-posts', requireAuth, async (req, res) => {
   try {
     const { crawlXOpportunities } = require('../services/socialCrawler');
-    const { query, type, maxResults, authToken, ct0 } = req.query;
+    const { query, type, timeFilter, maxResults, authToken, ct0 } = req.query;
     const posts = await crawlXOpportunities({
       query: query || '',
       type: type || 'all',
+      timeFilter: timeFilter || 'any',
       maxResults: parseInt(maxResults) || 15,
       authToken,
       ct0
@@ -82,10 +83,11 @@ router.get('/x-posts', requireAuth, async (req, res) => {
 router.get('/fb-posts', requireAuth, async (req, res) => {
   try {
     const { crawlFacebookOpportunities } = require('../services/socialCrawler');
-    const { query, type, targetGroupUrl, maxResults, cUser, xsToken } = req.query;
+    const { query, type, timeFilter, targetGroupUrl, maxResults, cUser, xsToken } = req.query;
     const posts = await crawlFacebookOpportunities({
       query: query || '',
       type: type || 'all',
+      timeFilter: timeFilter || 'any',
       targetGroupUrl: targetGroupUrl || null,
       maxResults: parseInt(maxResults) || 15,
       cUser,

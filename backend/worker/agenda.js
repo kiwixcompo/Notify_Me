@@ -123,7 +123,17 @@ agenda.define('process notifications', async (job, done) => {
         });
         
         if (matchedKeywords.length > 0 && !job.notifiedUsers.includes(user._id)) {
+          // 1. Send Email Alert
           const sent = await sendJobNotification(user, job, matchedKeywords);
+          
+          // 2. Send Mobile Web Push Notification
+          const { sendPushNotification } = require('../src/services/pushNotificationService');
+          await sendPushNotification(user, {
+            title: 'New Job Match!',
+            body: `Match found for: ${matchedKeywords.join(', ')}\n${job.title}`,
+            url: '/dashboard' // Link to the dashboard or job link
+          });
+          
           if (sent) {
             job.notifiedUsers.push(user._id);
             await job.save();

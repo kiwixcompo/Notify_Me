@@ -27,6 +27,7 @@ export default function LinkedInCrawler() {
   // X (Twitter) State
   const [xQuery, setXQuery] = useState('Computer Science');
   const [xType, setXType] = useState('all');
+  const [xTimeFilter, setXTimeFilter] = useState('any'); // 'any', '24h', 'week', 'month'
   const [xPosts, setXPosts] = useState([]);
   const [xLoading, setXLoading] = useState(false);
   const [xAuthToken, setXAuthToken] = useState('');
@@ -36,6 +37,7 @@ export default function LinkedInCrawler() {
   // Facebook State
   const [fbQuery, setFbQuery] = useState('Computer Science');
   const [fbType, setFbType] = useState('all');
+  const [fbTimeFilter, setFbTimeFilter] = useState('any'); // 'any', '24h', 'week', 'month'
   const [fbGroupUrl, setFbGroupUrl] = useState('');
   const [fbPosts, setFbPosts] = useState([]);
   const [fbLoading, setFbLoading] = useState(false);
@@ -132,6 +134,7 @@ export default function LinkedInCrawler() {
         params: {
           query: xQuery,
           type: xType,
+          timeFilter: xTimeFilter,
           maxResults: 15,
           authToken: xAuthToken || undefined,
           ct0: xCt0 || undefined
@@ -155,6 +158,7 @@ export default function LinkedInCrawler() {
         params: {
           query: fbQuery,
           type: fbType,
+          timeFilter: fbTimeFilter,
           targetGroupUrl: fbGroupUrl || undefined,
           maxResults: 15
         },
@@ -702,7 +706,7 @@ export default function LinkedInCrawler() {
             }}
             className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end"
           >
-            <div className="sm:col-span-6">
+            <div className="sm:col-span-4">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 X Search Query / Domain
               </label>
@@ -710,12 +714,12 @@ export default function LinkedInCrawler() {
                 type="text"
                 value={xQuery}
                 onChange={(e) => setXQuery(e.target.value)}
-                placeholder="e.g. Python, AI Researcher, Bioinformatics"
+                placeholder="e.g. Python, AI Researcher"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
               />
             </div>
 
-            <div className="sm:col-span-4">
+            <div className="sm:col-span-3">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Post Intent Filter
               </label>
@@ -727,6 +731,22 @@ export default function LinkedInCrawler() {
                 <option value="all">🌍 All Opportunities</option>
                 <option value="job">💼 Tech Hiring ("DM me your CV")</option>
                 <option value="scholarship">🎓 Funded PhDs & Scholarships</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-3">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Timeframe
+              </label>
+              <select
+                value={xTimeFilter}
+                onChange={(e) => setXTimeFilter(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
+              >
+                <option value="any">Any Time</option>
+                <option value="24h">Past 24 Hours</option>
+                <option value="week">Past Week</option>
+                <option value="month">Past Month</option>
               </select>
             </div>
 
@@ -889,39 +909,70 @@ export default function LinkedInCrawler() {
             }}
             className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end"
           >
-            <div className="sm:col-span-4">
+            <div className="sm:col-span-3">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Field / Domain
-              </label>
-              <input
-                type="text"
-                value={fbQuery}
-                onChange={(e) => setFbQuery(e.target.value)}
-                placeholder="e.g. Computer Science, AI, Remote Work"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="sm:col-span-5">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Target Public Group / Page (Optional)
+                Target Group URL (Optional)
               </label>
               <input
                 type="text"
                 value={fbGroupUrl}
                 onChange={(e) => setFbGroupUrl(e.target.value)}
-                placeholder="https://www.facebook.com/groups/your_group_name/"
+                placeholder="https://facebook.com/groups/..."
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+            
+            <div className="sm:col-span-3">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Role / Skill Keyword
+              </label>
+              <input
+                type="text"
+                value={fbQuery}
+                onChange={(e) => setFbQuery(e.target.value)}
+                placeholder="e.g. Data Scientist, Remote"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
 
-            <div className="sm:col-span-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Intent
+              </label>
+              <select
+                value={fbType}
+                onChange={(e) => setFbType(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="all">🌍 All</option>
+                <option value="job">💼 Jobs</option>
+                <option value="scholarship">🎓 Funded</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Timeframe
+              </label>
+              <select
+                value={fbTimeFilter}
+                onChange={(e) => setFbTimeFilter(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="any">Any Time</option>
+                <option value="24h">Past 24 Hours</option>
+                <option value="week">Past Week</option>
+                <option value="month">Past Month</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-2">
               <button
                 type="submit"
                 disabled={fbLoading}
                 className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
-                {fbLoading ? 'Crawling...' : '📘 Crawl Facebook'}
+                {fbLoading ? 'Crawling...' : '🔍 Crawl Facebook'}
               </button>
             </div>
           </form>

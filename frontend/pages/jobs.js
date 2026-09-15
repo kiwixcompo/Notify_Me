@@ -97,6 +97,7 @@ export default function AIJobHunter() {
     setError('');
     const formData = new FormData();
     formData.append('resume', file);
+    if (groqApiKey) formData.append('groq_api_key', groqApiKey);
 
     try {
       const res = await axios.post(`${API_BASE}/api/job-hunter/resume/upload`, formData, {

@@ -23,6 +23,9 @@ app.options('*', cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Start Agenda Worker in the background
+require('../worker/agenda');
+
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
