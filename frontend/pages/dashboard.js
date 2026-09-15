@@ -93,6 +93,50 @@ export default function Dashboard() {
   // Notification permission
   const [notifPermission, setNotifPermission] = useState('default');
 
+  // Notification permission and subscription
+  const requestPushPermission = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('Push notifications are not supported by your browser.');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+
+      if (permission === 'granted') {
+        const registration = await navigator.serviceWorker.ready;
+        const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        
+        if (!publicVapidKey) {
+          console.warn('VAPID public key not found. Make sure NEXT_PUBLIC_VAPID_PUBLIC_KEY is set in your .env');
+          return;
+        }
+
+        // urlBase64ToUint8Array function equivalent
+        const padding = '='.repeat((4 - publicVapidKey.length % 4) % 4);
+        const base64 = (publicVapidKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: outputArray
+        });
+
+        // Send subscription to backend
+        await axios.post(`${API_BASE}/api/push/subscribe`, subscription, { headers: getHeaders() });
+        alert('Successfully subscribed to notifications!');
+      }
+    } catch (err) {
+      console.error('Error subscribing to push notifications:', err);
+      alert('Failed to subscribe to push notifications.');
+    }
+  };
+
   const getHeaders = useCallback(() => {
     if (typeof window === 'undefined') return {};
     const token = localStorage.getItem('token');
@@ -208,9 +252,7 @@ export default function Dashboard() {
   };
 
   const handleEnableNotifications = () => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      Notification.requestPermission().then(p => setNotifPermission(p));
-    }
+    requestPushPermission();
   };
 
   const formatAgo = (dateStr) => {
@@ -278,10 +320,14 @@ export default function Dashboard() {
           {notifPermission === 'default' && (
             <div className="mt-4 flex items-center justify-between bg-white/10 border border-white/20 rounded-xl px-4 py-2">
               <span className="text-sm text-blue-100">🔔 Enable desktop notifications for new opportunities</span>
-              <button
-                onClick={handleEnableNotifications}
-                className="text-xs font-bold bg-white text-blue-900 px-3 py-1 rounded-lg hover:bg-blue-50 transition"
-              >Enable</button>
+              <div className="flex gap-4">
+                <button onClick={requestPushPermission} className="px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition font-medium">
+                  Enable Web Push
+                </button>
+                <button onClick={() => setNotifPermission('granted')} className="px-5 py-2 border border-blue-200 text-blue-700 bg-white rounded-lg shadow-sm hover:bg-blue-50 transition font-medium">
+                  Dismiss
+                </button>
+              </div>
             </div>
           )}
           {notifPermission === 'granted' && (

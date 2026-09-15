@@ -106,3 +106,43 @@ function openQueueDB() {
     request.onerror = event => reject(event.target.error);
   });
 } 
+
+// Push Notifications Support
+self.addEventListener('push', function(event) {
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      const options = {
+        body: data.body || 'You have a new update from Notify Me.',
+        icon: data.icon || '/icon512_rounded.png',
+        badge: '/icon512_rounded.png',
+        data: { url: data.url || '/' }
+      };
+      event.waitUntil(self.registration.showNotification(data.title || 'Notify Me Alert', options));
+    } catch (e) {
+      console.error('Push event payload could not be parsed', e);
+      event.waitUntil(self.registration.showNotification('Notify Me Alert', { body: event.data.text() }));
+    }
+  }
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(windowClients => {
+      const url = event.notification.data.url || '/';
+      // Check if there is already a window/tab open with the target URL
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url === url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // If not, open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
+});
+

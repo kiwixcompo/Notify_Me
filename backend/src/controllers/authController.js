@@ -276,4 +276,94 @@ async function login(req, res, next) {
   }
 }
 
-module.exports = { register, login, loginLimiter }; 
+// Forgot Password handler
+async function forgotPassword(req, res, next) {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ error: 'There is no user with that email.' });
+    }
+
+    // Generate token
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(20).toString('hex');
+
+    // Hash token and set to resetPasswordToken field
+    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    await user.save({ validateBeforeSave: false });
+
+    // Create reset url
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+
+    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to: \n\n ${resetUrl}`;
+    const htmlMessage = `
+      <h3>Password Reset Request</h3>
+      <p>You requested a password reset. Please click the button below to reset your password:</p>
+      <a href="${resetUrl}" style="display:inline-block;padding:10px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:5px;">Reset Password</a>
+      <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
+    `;
+
+    try {
+      const sendEmail = require('../utils/sendEmail');
+      await sendEmail({
+        email: user.email,
+        subject: 'Notify Me - Password Reset Token',
+        message,
+        html: htmlMessage
+      });
+
+      res.status(200).json({ success: true, data: 'Email sent' });
+    } catch (err) {
+      console.error(err);
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      return res.status(500).json({ error: 'Email could not be sent' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// Reset Password handler
+async function resetPassword(req, res, next) {
+  try {
+    const crypto = require('crypto');
+    const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid token or token expired' });
+    }
+
+    // Set new password
+    const { password } = req.body;
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
+
+    user.passwordHash = await bcrypt.hash(password, 10);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save();
+
+    // Generate new token and login immediately
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.status(200).json({ success: true, token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { register, login, loginLimiter, forgotPassword, resetPassword }; 

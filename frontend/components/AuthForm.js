@@ -40,14 +40,14 @@ export default function AuthForm({ mode }) {
           password: password,
           name: name.trim(),
           phone: phone.trim() || ''
-        });
+        }, { timeout: 15000 });
       }
       
       // Then log them in
       const res = await axios.post(`${apiUrl}/api/auth/login`, { 
         email: email.trim(), 
         password: password 
-      });
+      }, { timeout: 15000 });
       
       if (res.data && res.data.token) {
         localStorage.setItem('token', res.data.token);
@@ -163,7 +163,11 @@ export default function AuthForm({ mode }) {
               </div>
             </>
           )}
-          {mode === 'login' && <div className="mb-6" />}
+          {mode === 'login' && (
+            <div className="mb-6 w-full text-right">
+              <a href="/forgot-password" className="text-sm text-blue-600 hover:underline font-semibold">Forgot password?</a>
+            </div>
+          )}
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-3 rounded-lg shadow hover:bg-blue-700 hover:scale-105 active:scale-95 transition font-semibold text-lg mb-2 z-10 focus:outline-none focus:ring-4 focus:ring-blue-300"

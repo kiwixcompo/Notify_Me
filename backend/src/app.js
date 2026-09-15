@@ -44,6 +44,7 @@ app.use('/api/linkedin', require('./routes/linkedin'));
 app.use('/api/job-hunter', require('./routes/aiJobHunter'));
 app.use('/api/portals', require('./routes/portals'));
 app.use('/api/feeds/website-links', require('./routes/websiteLinks'));
+app.use('/api/push', require('./routes/push'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
