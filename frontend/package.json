@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "cross-env CAPACITOR_BUILD=true next build",
     "start": "next start",
     "lint": "next lint",
     "export": "next export",
@@ -23,6 +23,7 @@
   "devDependencies": {
     "@capacitor/cli": "^7.4.2",
     "autoprefixer": "^10.4.17",
+    "cross-env": "^10.1.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.3"
   }

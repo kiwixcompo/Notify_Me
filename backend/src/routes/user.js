@@ -104,6 +104,57 @@ function detectContentType(url, explicitIsXML, explicitContentType) {
 	return 'rss';
 }
 
+// Update an existing RSS feed for the authenticated user
+router.put('/rss-feeds/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, keywords, isActive } = req.body;
+    
+    // Validate input
+    if (!id) {
+      return res.status(400).json({ error: 'Feed ID is required' });
+    }
+    
+    // Prepare update object
+    const update = {};
+    if (name !== undefined) update.name = name;
+    if (keywords !== undefined) update.keywords = Array.isArray(keywords) ? keywords : [];
+    if (isActive !== undefined) update.isActive = isActive;
+    
+    // Find and update the feed
+    const feed = await RssFeed.findOneAndUpdate(
+      { _id: id, user: req.userId },
+      { $set: update },
+      { new: true, runValidators: true }
+    );
+    
+    if (!feed) {
+      return res.status(404).json({ error: 'Feed not found or access denied' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Feed updated successfully',
+      feed: {
+        _id: feed._id,
+        name: feed.name,
+        url: feed.url,
+        type: feed.type,
+        keywords: feed.keywords,
+        isActive: feed.isActive,
+        updatedAt: feed.updatedAt
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error updating feed:', error);
+    res.status(500).json({ 
+      error: 'Failed to update feed',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // Add a new RSS feed for the authenticated user
 router.post('/rss-feeds', requireAuth, async (req, res) => {
 	try {

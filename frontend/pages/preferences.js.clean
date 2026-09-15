@@ -1,0 +1,273 @@
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import axios from 'axios';
+import Layout from '../components/Layout';
+import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
+
+export default function Preferences() {
+  const router = useRouter();
+  const [websiteLinks, setWebsiteLinks] = useState([]);
+  const [newLink, setNewLink] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [editingLink, setEditingLink] = useState(null);
+  const [editUrl, setEditUrl] = useState('');
+
+  // Load user's website links on component mount
+  useEffect(() => {
+    const fetchLinks = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
+
+        const response = await axios.get('/api/feeds/website-links', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setWebsiteLinks(response.data);
+      } catch (err) {
+        setError('Failed to load website links');
+        console.error('Error fetching website links:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLinks();
+  }, [router]);
+
+  // Add a new website link
+  const addWebsiteLink = async (e) => {
+    e.preventDefault();
+    if (!newLink.trim()) return;
+    
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        '/api/feeds/website-links',
+        { url: newLink },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setWebsiteLinks([...websiteLinks, response.data]);
+      setNewLink('');
+      setSuccess('Website link added successfully!');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add website link');
+      console.error('Error adding website link:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Remove a website link
+  const removeWebsiteLink = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this website?')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/feeds/website-links/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setWebsiteLinks(websiteLinks.filter(link => link._id !== id));
+      setSuccess('Website link removed successfully!');
+    } catch (err) {
+      setError('Failed to remove website link');
+      console.error('Error removing website link:', err);
+    }
+  };
+
+  // Update a website link
+  const updateWebsiteLink = async (e) => {
+    e.preventDefault();
+    if (!editUrl.trim() || !editingLink) return;
+    
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        `/api/feeds/website-links/${editingLink._id}`,
+        { url: editUrl },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setWebsiteLinks(websiteLinks.map(link => 
+        link._id === editingLink._id ? response.data : link
+      ));
+      
+      setEditingLink(null);
+      setEditUrl('');
+      setSuccess('Website link updated successfully!');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update website link');
+      console.error('Error updating website link:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  // Start editing a link
+  const startEditing = (link) => {
+    setEditingLink(link);
+    setEditUrl(link.url);
+  };
+  
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditingLink(null);
+    setEditUrl('');
+  };
+
+  // Render the component
+  if (loading) {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto py-8 px-4">
+          <h1 className="text-2xl font-bold mb-6">Preferences</h1>
+          <div className="bg-white rounded-lg shadow p-6">
+            <p>Loading your preferences...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <h1 className="text-2xl font-bold mb-6">Website Feeds</h1>
+        
+        {/* Success/Error Messages */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+            {success}
+          </div>
+        )}
+
+        {/* Add New Website Form */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Add New Website</h2>
+          <form onSubmit={addWebsiteLink} className="flex flex-col space-y-4">
+            <div>
+              <label htmlFor="websiteUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                Website URL
+              </label>
+              <input
+                type="url"
+                id="websiteUrl"
+                value={newLink}
+                onChange={(e) => setNewLink(e.target.value)}
+                placeholder="https://example.com"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Enter the URL of the website you want to track for job postings.
+              </p>
+            </div>
+            <button
+              type="submit"
+              disabled={saving || !newLink.trim()}
+              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                saving || !newLink.trim()
+                  ? 'bg-blue-300 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            >
+              {saving ? 'Adding...' : 'Add Website'}
+            </button>
+          </form>
+        </div>
+
+        {/* Website Links List */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold">Your Tracked Websites</h2>
+          </div>
+          
+          {websiteLinks.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">
+              <p>You haven't added any websites yet.</p>
+              <p className="mt-1">Add a website above to start tracking job postings.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {websiteLinks.map((link) => (
+                <li key={link._id} className="p-4 hover:bg-gray-50">
+                  {editingLink?._id === link._id ? (
+                    <form onSubmit={updateWebsiteLink} className="flex items-center space-x-4">
+                      <input
+                        type="url"
+                        value={editUrl}
+                        onChange={(e) => setEditUrl(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={cancelEditing}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={saving || !editUrl.trim()}
+                        className="px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        {saving ? 'Saving...' : 'Save'}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {link.name || 'Untitled Feed'}
+                        </p>
+                        <p className="text-sm text-gray-500 truncate">{link.url}</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => startEditing(link)}
+                          className="p-1 text-gray-400 hover:text-gray-600 focus:outline-none"
+                          title="Edit"
+                        >
+                          <PencilIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => removeWebsiteLink(link._id)}
+                          className="p-1 text-red-400 hover:text-red-600 focus:outline-none"
+                          title="Remove"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Layout>
+  );
+}

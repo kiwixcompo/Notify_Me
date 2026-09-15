@@ -17,20 +17,44 @@ export default function AuthForm({ mode }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (mode === 'register' && password !== repeatPassword) {
-      setError('Passwords do not match.');
-      return;
+    
+    if (mode === 'register') {
+      if (password !== repeatPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
+      if (!name || name.trim().length < 2) {
+        setError('Please enter a valid name (at least 2 characters)');
+        return;
+      }
     }
+    
     setLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      
       if (mode === 'register') {
-        await axios.post(`${apiUrl}/api/auth/register`, { email, password, name, phone });
-        // Auto-login after registration
+        // First register the user
+        await axios.post(`${apiUrl}/api/auth/register`, { 
+          email: email.trim(), 
+          password: password,
+          name: name.trim(),
+          phone: phone.trim() || ''
+        });
       }
-      const res = await axios.post(`${apiUrl}/api/auth/login`, { email, password });
-      localStorage.setItem('token', res.data.token);
-      router.replace('/dashboard');
+      
+      // Then log them in
+      const res = await axios.post(`${apiUrl}/api/auth/login`, { 
+        email: email.trim(), 
+        password: password 
+      });
+      
+      if (res.data && res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        router.replace('/dashboard');
+      } else {
+        throw new Error('No token received');
+      }
     } catch (err) {
       console.error('Auth error:', err);
       if (err.response && err.response.data && err.response.data.error) {

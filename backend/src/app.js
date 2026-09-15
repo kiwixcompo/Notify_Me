@@ -40,6 +40,10 @@ app.use('/api/user', require('./routes/user'));
 app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/scholarships', require('./routes/scholarships'));
 app.use('/api/predefined-feeds', require('./routes/predefinedFeeds'));
+app.use('/api/linkedin', require('./routes/linkedin'));
+app.use('/api/job-hunter', require('./routes/aiJobHunter'));
+app.use('/api/portals', require('./routes/portals'));
+app.use('/api/feeds/website-links', require('./routes/websiteLinks'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

@@ -8,8 +8,18 @@ const jobSchema = new mongoose.Schema({
   publishedDate: Date,
   firstSeen: { type: Date, default: Date.now },
   notifiedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  source: { type: String, enum: ['rss'], default: 'rss' },
-  feedUrl: String // New: which RSS feed this job came from
+  company: { type: String, default: 'Direct Employer' },
+  location: { type: String, default: 'Remote' },
+  status: { 
+    type: String, 
+    enum: ['saved', 'applied', 'interviewing', 'offer', 'rejected'],
+    default: 'saved'
+  },
+  matchScore: { type: Number, default: 0 },
+  matchReasons: [String],
+  notes: { type: String, default: '' },
+  source: { type: String, default: 'direct_web' },
+  feedUrl: String
 });
 
 module.exports = mongoose.model('Job', jobSchema); 

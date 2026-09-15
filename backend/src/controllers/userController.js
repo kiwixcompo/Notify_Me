@@ -5,19 +5,22 @@ const validator = require('validator');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Auth middleware
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (auth && auth.startsWith('Bearer ')) {
+    try {
+      const token = auth.split(' ')[1];
+      const payload = jwt.verify(token, JWT_SECRET);
+      if (payload && payload.userId) {
+        req.userId = payload.userId;
+        return next();
+      }
+    } catch (err) {
+      return res.status(401).json({ error: 'Not authorized, token failed' });
+    }
   }
-  try {
-    const token = auth.split(' ')[1];
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.userId = payload.userId;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+
+  return res.status(401).json({ error: 'Not authorized, no token' });
 }
 
 // GET preferences

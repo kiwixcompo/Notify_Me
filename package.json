@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run ai-service\"",
     "backend": "npm run dev --prefix backend",
-    "frontend": "npm run dev --prefix frontend"
+    "frontend": "npm run dev --prefix frontend",
+    "ai-service": "cd backend/python_service && \"C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" -m uvicorn server:app --host 127.0.0.1 --port 8000 --reload"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

@@ -1,426 +1,277 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import axios from 'axios';
+import api from '../utils/api';
 import Layout from '../components/Layout';
-import Papa from 'papaparse';
-import { BriefcaseIcon, AcademicCapIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, PencilIcon, BriefcaseIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
 
 export default function Preferences() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' or 'scholarships'
-  const [isClient, setIsClient] = useState(false);
-  const [feeds, setFeeds] = useState([]);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!localStorage.getItem('token')) {
+        window.location.href = '/login';
+      }
+    }
+  }, []);
+
+  const [websiteLinks, setWebsiteLinks] = useState([]);
+  const [newLink, setNewLink] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [activeTab, setActiveTab] = useState('jobs');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [predefinedCategories, setPredefinedCategories] = useState([
+    {
+      name: 'Tech Jobs',
+      feeds: [
+        { _id: '1', name: 'Remote Tech Jobs', source: 'RemoteOK' },
+        { _id: '2', name: 'Startup Jobs', source: 'AngelList' },
+      ]
+    },
+    {
+      name: 'Scholarships',
+      feeds: [
+        { _id: '3', name: 'Undergraduate Scholarships', source: 'ScholarshipPortal' },
+        { _id: '4', name: 'Graduate Fellowships', source: 'ProFellow' },
+      ]
+    }
+  ]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [categoryFeeds, setCategoryFeeds] = useState([]);
+  const [addedFeeds, setAddedFeeds] = useState(new Set());
+  const [feeds, setFeeds] = useState([]);
+  const [selectedFeeds, setSelectedFeeds] = useState([]);
   const [newFeedUrl, setNewFeedUrl] = useState('');
   const [newFeedName, setNewFeedName] = useState('');
   const [newFeedApi, setNewFeedApi] = useState('');
-  const [error, setError] = useState('');
   const [editingFeed, setEditingFeed] = useState(null);
-  const [editUrl, setEditUrl] = useState('');
   const [editName, setEditName] = useState('');
   const [editApi, setEditApi] = useState('');
-
-  // Predefined feeds state
-  const [predefinedCategories, setPredefinedCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [categoryFeeds, setCategoryFeeds] = useState([]);
-  const [loadingCategories, setLoadingCategories] = useState(false);
-  const [addedFeeds, setAddedFeeds] = useState(new Set()); // Track added feeds
-  
-  // Real-time search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-
-  // Profile state
-  const [profile, setProfile] = useState({ name: '', email: '' });
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileSuccess, setProfileSuccess] = useState(false);
-  const [profileError, setProfileError] = useState('');
-  const [profilePassword, setProfilePassword] = useState('');
-
-  // Bulk upload state
   const [bulkText, setBulkText] = useState('');
   const [bulkCsvFile, setBulkCsvFile] = useState(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkUploadResult, setBulkUploadResult] = useState(null);
-
-  // Alert Keywords state
   const [alertKeywords, setAlertKeywords] = useState('');
   const [alertKeywordsSaved, setAlertKeywordsSaved] = useState(false);
 
-  // Set client flag
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Load keywords from localStorage on mount
-  useEffect(() => {
-    if (!isClient) return;
-    const saved = localStorage.getItem('alertKeywords') || '';
-    setAlertKeywords(saved);
-  }, [isClient]);
-
-  const handleSaveAlertKeywords = () => {
-    localStorage.setItem('alertKeywords', alertKeywords);
-    setAlertKeywordsSaved(true);
-    setTimeout(() => setAlertKeywordsSaved(false), 2000);
-  };
-
-  useEffect(() => {
-    if (!isClient) return;
-    fetchFeeds();
-    fetchProfile();
-    
-    // IMMEDIATELY load embedded feeds for instant display
-    const type = activeTab === 'jobs' ? 'job' : 'scholarship';
-    const embeddedCategories = Object.values(embeddedPredefinedFeeds[type] || {});
-    setPredefinedCategories(embeddedCategories);
-    console.log('Embedded feeds loaded immediately:', embeddedCategories);
-    
-    // Then try API in background
-    fetchPredefinedCategories();
-  }, [activeTab, isClient]);
-
-  const fetchFeeds = async () => {
-    setLoading(true);
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setError('No authentication token found');
-      setLoading(false);
+  // Handle search functionality
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
       return;
     }
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await axios.get(`${apiUrl}/api/user/rss-feeds?type=${activeTab === 'jobs' ? 'job' : 'scholarship'}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setFeeds(res.data.feeds || []);
-      
-      // Update added feeds set with current user feeds
-      const userFeedUrls = new Set(res.data.feeds.map(feed => feed.url));
-      setAddedFeeds(userFeedUrls);
-    } catch (err) {
-      setError('Failed to load RSS feeds');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Embedded predefined feeds for immediate online functionality
-  const embeddedPredefinedFeeds = {
-    'job': {
-      'default-jobs': {
-        name: 'Default Jobs',
-        type: 'job',
-        feeds: [
-          {
-            _id: 'embedded-job-1',
-            name: 'Jobs Found',
-            description: 'Curated remote job opportunities from Jobs Found RSS feed',
-            url: 'https://rss.app/feeds/Ved3zhgCZQ7I2XNo.xml',
-            source: 'Jobs Found (RSS.app)',
-            category: 'default-jobs'
-          },
-          {
-            _id: 'embedded-job-2',
-            name: 'Himalayas Remote Jobs',
-            description: 'Remote job opportunities from Himalayas job board',
-            url: 'https://himalayas.app/jobs/rss',
-            source: 'Himalayas',
-            category: 'default-jobs'
-          },
-          {
-            _id: 'embedded-job-3',
-            name: 'We Work Remotely',
-            description: 'Remote job opportunities from We Work Remotely',
-            url: 'https://weworkremotely.com/remote-jobs.rss',
-            source: 'We Work Remotely',
-            category: 'default-jobs'
-          }
-        ]
-      }
-    },
-    'scholarship': {
-      'default-scholarships': {
-        name: 'Default Scholarships',
-        type: 'scholarship',
-        feeds: [
-          {
-            _id: 'embedded-scholarship-1',
-            name: 'Scholarships Region',
-            description: 'Regional scholarship opportunities and funding programs',
-            url: 'https://rss.app/feeds/VxzvBe8gQnW32JhP.xml',
-            source: 'Scholarships Region (RSS.app)',
-            category: 'default-scholarships'
-          },
-          {
-            _id: 'embedded-scholarship-2',
-            name: 'Scholarships and Aid',
-            description: 'Comprehensive scholarships and financial aid opportunities',
-            url: 'https://rss.app/feeds/dh2Nxk5zrvEhzRd3.xml',
-            source: 'Scholarships & Aid (RSS.app)',
-            category: 'default-scholarships'
-          }
-        ]
-      }
-    }
-  };
-
-  // Debug: Log embedded feeds to console
-  console.log('Embedded predefined feeds loaded:', embeddedPredefinedFeeds);
-
-  const fetchPredefinedCategories = async () => {
-    setLoadingCategories(true);
-    
-    // IMMEDIATELY load embedded feeds for instant display
-    const type = activeTab === 'jobs' ? 'job' : 'scholarship';
-    const embeddedCategories = Object.values(embeddedPredefinedFeeds[type] || {});
-    setPredefinedCategories(embeddedCategories);
-    setLoadingCategories(false);
-    
-    // Then try to fetch from API in the background (for local development)
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await axios.get(`${apiUrl}/api/predefined-feeds/categories?type=${activeTab === 'jobs' ? 'job' : 'scholarship'}`);
-      
-      // Only update if API returns more data than embedded feeds
-      if (res.data.categories && res.data.categories.length > embeddedCategories.length) {
-        setPredefinedCategories(res.data.categories);
-      }
-    } catch (err) {
-      console.log('API not available, using embedded predefined feeds (already loaded)');
-      // Embedded feeds are already loaded, so no action needed
-    }
-  };
-
-  const fetchCategoryFeeds = async (category) => {
-    setSelectedCategory(category);
-    
-    // IMMEDIATELY load embedded category feeds for instant display
-    const type = activeTab === 'jobs' ? 'job' : 'scholarship';
-    
-    // Find the embedded category by matching the category name or category property
-    let embeddedCategory = null;
-    for (const [key, cat] of Object.entries(embeddedPredefinedFeeds[type] || {})) {
-      if (cat.name === category.name || cat.category === category.name || key === category.name) {
-        embeddedCategory = cat;
-        break;
-      }
-    }
-    
-    console.log('Category clicked:', category.name);
-    console.log('Found embedded category:', embeddedCategory);
-    
-    if (embeddedCategory) {
-      setCategoryFeeds(embeddedCategory.feeds || []);
-      console.log('Setting category feeds:', embeddedCategory.feeds);
-    } else {
-      console.log('No embedded category found, setting empty feeds');
-      setCategoryFeeds([]);
-    }
-    
-    // Then try to fetch from API in the background (for local development)
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await axios.get(`${apiUrl}/api/predefined-feeds/categories/${activeTab === 'jobs' ? 'job' : 'scholarship'}/${category.name}`);
-      
-      // Only update if API returns more data than embedded feeds
-      if (res.data.feeds && res.data.feeds.length > (embeddedCategory?.feeds?.length || 0)) {
-        setCategoryFeeds(res.data.feeds);
-      }
-    } catch (err) {
-      console.log('API not available, using embedded category feeds (already loaded)');
-      // Embedded feeds are already loaded, so no action needed
-    }
-  };
-
-  const handleAddPredefinedFeed = async (predefinedFeedId, feedUrl) => {
-    setSaving(true);
-    setError('');
-    const token = localStorage.getItem('token');
-    
-    // Check if this is an embedded feed (starts with 'embedded-')
-    if (predefinedFeedId.startsWith('embedded-')) {
-      try {
-        // For embedded feeds, add directly to user's feeds via API
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        // Find the actual feed name from the embedded feeds
-        let feedName = predefinedFeedId;
-        const type = activeTab === 'jobs' ? 'job' : 'scholarship';
-        for (const [key, cat] of Object.entries(embeddedPredefinedFeeds[type] || {})) {
-          const feed = cat.feeds?.find(f => f._id === predefinedFeedId);
-          if (feed) {
-            feedName = feed.name;
-            break;
-          }
-        }
-        
-        await axios.post(`${apiUrl}/api/user/rss-feeds`, {
-          url: feedUrl,
-          name: feedName,
-          type: activeTab === 'jobs' ? 'job' : 'scholarship',
-          category: activeTab === 'jobs' ? 'default-jobs' : 'default-scholarships'
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setSuccess(true);
-        setAddedFeeds(prev => new Set([...prev, feedUrl]));
-        fetchFeeds();
-        setTimeout(() => setSuccess(false), 2000);
-      } catch (err) {
-        // If API fails, just show success message (embedded feeds work offline)
-        setSuccess(true);
-        setAddedFeeds(prev => new Set([...prev, feedUrl]));
-        setTimeout(() => setSuccess(false), 2000);
-      } finally {
-        setSaving(false);
-      }
-    } else {
-      // Original logic for backend-defined feeds
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        await axios.post(`${apiUrl}/api/predefined-feeds/add-to-user`, {
-          predefinedFeedId
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setSuccess(true);
-        setAddedFeeds(prev => new Set([...prev, feedUrl]));
-        fetchFeeds();
-        setTimeout(() => setSuccess(false), 2000);
-      } catch (err) {
-        setError(err.response?.data?.error || 'Failed to add feed');
-      } finally {
-        setSaving(false);
-      }
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
     
     setSearching(true);
-    setError('');
+    setSearchResults([]);
+    
     try {
-      const endpoint = activeTab === 'jobs' ? '/api/jobs/search' : '/api/scholarships/search';
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const response = await axios.get(`${apiUrl}${endpoint}`, {
-        params: { query: searchQuery, limit: 20 }
-      });
-      
-      if (activeTab === 'jobs') {
-        setSearchResults(response.data.jobs || []);
-      } else {
-        setSearchResults(response.data.scholarships || []);
-      }
+      const response = await api.get(`/feeds/search?q=${encodeURIComponent(searchQuery)}&type=${activeTab}`);
+      setSearchResults(response.data);
     } catch (err) {
-      setError('Failed to search. Please try again.');
-      setSearchResults([]);
+      setError('Failed to perform search. Please try again.');
+      console.error('Search error:', err);
     } finally {
       setSearching(false);
     }
   };
 
-  const fetchProfile = async () => {
-    setProfileLoading(true);
-    setProfileError('');
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setProfileError('No authentication token found');
-      setProfileLoading(false);
+  // Load user's website links on component mount
+  useEffect(() => {
+    const fetchLinks = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        console.log('Fetching website links...');
+        const response = await api.get('/api/feeds/website-links');
+        console.log('Fetched links:', response.data);
+        setWebsiteLinks(Array.isArray(response.data) ? response.data : []);
+      } catch (err) {
+        const errorMessage = err.response?.data?.error || 'Failed to load website links';
+        setError(errorMessage);
+        console.error('Error fetching website links:', {
+          message: err.message,
+          status: err.response?.status,
+          data: err.response?.data
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLinks();
+  }, [router]);
+
+  // Add a new website link
+  const addWebsiteLink = async (e) => {
+    e.preventDefault();
+    if (!newLink.trim()) {
+      setError('Please enter a valid URL');
       return;
     }
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await axios.get(`${apiUrl}/api/user/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProfile({ name: res.data.name, email: res.data.email });
-    } catch (err) {
-      setProfileError('Failed to load profile');
-    } finally {
-      setProfileLoading(false);
-    }
-  };
-
-  const handleProfileSave = async () => {
-    setProfileLoading(true);
-    setProfileError('');
-    setProfileSuccess(false);
-    const token = localStorage.getItem('token');
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      await axios.put(`${apiUrl}/api/user/profile`, {
-        name: profile.name,
-        email: profile.email,
-        password: profilePassword || undefined
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProfileSuccess(true);
-      setProfilePassword('');
-    } catch (err) {
-      setProfileError('Failed to update profile');
-    } finally {
-      setProfileLoading(false);
-    }
-  };
-
-  const handleAddFeed = async () => {
+    
     setSaving(true);
     setError('');
-    setSuccess(false);
-    // Duplicate check
-    if (feeds.some(f => f.url.trim().toLowerCase() === newFeedUrl.trim().toLowerCase())) {
-      setError('This feed already exists.');
-      setSaving(false);
-      return;
-    }
-    const token = localStorage.getItem('token');
+    setSuccess('');
+    
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      await axios.post(`${apiUrl}/api/user/rss-feeds`, {
-        url: newFeedUrl,
-        name: newFeedName,
-        apiBackupUrl: newFeedApi,
+      console.log('Adding new link:', { url: newLink, type: activeTab });
+      const response = await api.post('/api/feeds/website-links', { 
+        url: newLink.trim(),
         type: activeTab === 'jobs' ? 'job' : 'scholarship'
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
+      
+      console.log('Link added successfully:', response);
+      setWebsiteLinks(prevLinks => [...prevLinks, response.data]);
+      setNewLink('');
+      setSuccess('Website link added successfully!');
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || 
+                         err.response?.data?.message || 
+                         'Failed to add website link. Please try again.';
+      setError(errorMessage);
+      console.error('Error adding website link:', {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Remove a website link
+  const removeWebsiteLink = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this website?')) return;
+    
+    try {
+      await api.delete(`/api/feeds/website-links/${id}`);
+      setWebsiteLinks(prevLinks => prevLinks.filter(link => link._id !== id));
+      setSuccess('Website link removed successfully!');
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || 'Failed to remove website link';
+      setError(errorMessage);
+      console.error('Error removing website link:', {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+    }
+  };
+  // State for feed keywords
+  const [feedKeywords, setFeedKeywords] = useState('');
+  const [activeFeedId, setActiveFeedId] = useState(null);
+  const [isSavingKeywords, setIsSavingKeywords] = useState(false);
+
+  // Update a website link
+  const updateWebsiteLink = async (e) => {
+    e.preventDefault();
+    if (!editUrl.trim() || !editingLink) return;
+    
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const response = await api.put(
+        `/api/feeds/website-links/${editingLink._id}`,
+        { 
+          url: editUrl,
+          type: activeTab === 'jobs' ? 'job' : 'scholarship'
+        }
+      );
+      
+      setWebsiteLinks(websiteLinks.map(link => 
+        link._id === editingLink._id ? response.data : link
+      ));
+      
+      setEditingLink(null);
+      setEditUrl('');
+      setSuccess('Website link updated successfully!');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update website link');
+      console.error('Error updating website link:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  // Start editing a link
+  const startEditing = (link) => {
+    setEditingLink(link);
+    setEditUrl(link.url);
+  };
+  
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditingLink(null);
+    setEditUrl('');
+  };
+
+  // Handle category selection
+  const fetchCategoryFeeds = (category) => {
+    setSelectedCategory(category);
+    setCategoryFeeds(category.feeds);
+  };
+
+  // Handle adding predefined feed
+  const handleAddPredefinedFeed = async (feedId, feedUrl) => {
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        '/api/feeds/website-links',
+        { url: feedUrl },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setWebsiteLinks([...websiteLinks, response.data]);
+      setAddedFeeds(new Set([...addedFeeds, feedUrl]));
+      setSuccess('Feed added successfully!');
+    } catch (err) {
+      setError('Failed to add feed');
+      console.error('Error adding feed:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle adding new feed
+  const handleAddFeed = async () => {
+    if (!newFeedUrl) return;
+    
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        '/api/feeds/website-links',
+        { 
+          url: newFeedUrl,
+          name: newFeedName || undefined,
+          apiBackupUrl: newFeedApi || undefined
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setFeeds([...feeds, response.data]);
       setNewFeedUrl('');
       setNewFeedName('');
       setNewFeedApi('');
-      setSuccess(true);
-      fetchFeeds();
+      setSuccess('Feed added successfully!');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to add RSS feed');
+      setError('Failed to add feed');
+      console.error('Error adding feed:', err);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteFeed = async (id) => {
-    setSaving(true);
-    setError('');
-    setSuccess(false);
-    const token = localStorage.getItem('token');
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      await axios.delete(`${apiUrl}/api/user/rss-feeds/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSuccess(true);
-      fetchFeeds();
-    } catch (err) {
-      setError('Failed to delete RSS feed');
-    } finally {
-      setSaving(false);
-    }
-  };
-
+  // Handle editing feed
   const startEditFeed = (feed) => {
     setEditingFeed(feed._id);
     setEditUrl(feed.url);
@@ -428,232 +279,279 @@ export default function Preferences() {
     setEditApi(feed.apiBackupUrl || '');
   };
 
-  const handleEditFeed = async (id) => {
-    setSaving(true);
-    setError('');
-    setSuccess(false);
-    const token = localStorage.getItem('token');
+  // Handle saving edited feed
+  const handleEditFeed = async (feedId) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      await axios.put(`${apiUrl}/api/user/rss-feeds/${id}`, {
-        url: editUrl,
-        name: editName,
-        apiBackupUrl: editApi
-      }, {
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        `/api/feeds/website-links/${feedId}`,
+        { 
+          url: editUrl,
+          name: editName || undefined,
+          apiBackupUrl: editApi || undefined
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setFeeds(feeds.map(feed => 
+        feed._id === feedId ? response.data : feed
+      ));
+      setEditingFeed(null);
+      setSuccess('Feed updated successfully!');
+    } catch (err) {
+      setError('Failed to update feed');
+      console.error('Error updating feed:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle deleting feed
+  const handleDeleteFeed = async (feedId) => {
+    if (!window.confirm('Are you sure you want to delete this feed?')) return;
+    
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      await axios.delete(`/api/feeds/website-links/${feedId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setEditingFeed(null);
-      setSuccess(true);
-      fetchFeeds();
+      
+      setFeeds(feeds.filter(feed => feed._id !== feedId));
+      setSelectedFeeds(selectedFeeds.filter(id => id !== feedId));
+      setSuccess('Feed deleted successfully!');
     } catch (err) {
-      setError('Failed to edit RSS feed');
+      setError('Failed to delete feed');
+      console.error('Error deleting feed:', err);
     } finally {
       setSaving(false);
     }
   };
 
+  // Handle bulk upload
   const handleBulkUpload = async () => {
-    setBulkUploading(true);
-    setBulkUploadResult(null);
-    const token = localStorage.getItem('token');
-    let feedsToAdd = [];
-    // Parse text area
-    if (bulkText.trim()) {
-      feedsToAdd = feedsToAdd.concat(
-        bulkText.split('\n').map(line => line.trim()).filter(Boolean).flatMap(line => {
-          // If comma-separated, split and treat as multiple URLs
-          if (line.includes(',')) {
-            return line.split(',').map(url => url.trim()).filter(Boolean).map(url => ({ url }));
-          }
-          return [{ url: line }];
-        })
-      );
-    }
-    // Auto-fill name if missing, using domain or significant part of URL, and camel case it
-    function toCamelCase(str) {
-      return str
-        .replace(/[-_]/g, ' ')
-        .replace(/(?:^|\s|\.|\/|:)([a-z])/g, (m, c) => c ? c.toUpperCase() : '')
-        .replace(/\s+/g, '');
-    }
-    feedsToAdd = feedsToAdd.map(feed => {
-      if (!feed.name || !feed.name.trim()) {
-        try {
-          const urlObj = new URL(feed.url);
-          let name = urlObj.hostname.replace(/^www\./, '').split('.')[0];
-          if (!name) name = urlObj.hostname;
-          name = toCamelCase(name);
-          return { ...feed, name };
-        } catch {
-          // fallback: use part of the string before first dot or slash
-          let name = feed.url.split(/[./]/).filter(Boolean)[0] || 'Feed';
-          name = toCamelCase(name);
-          return { ...feed, name };
-        }
-      }
-      return feed;
-    });
-    // Remove duplicates (existing feeds)
-    const existingUrls = feeds.map(f => f.url.trim().toLowerCase());
-    const uniqueFeedsToAdd = feedsToAdd.filter(feed => !existingUrls.includes(feed.url.trim().toLowerCase()));
-    const skippedCount = feedsToAdd.length - uniqueFeedsToAdd.length;
-    // Parse CSV
-    if (bulkCsvFile) {
-      await new Promise((resolve, reject) => {
-        Papa.parse(bulkCsvFile, {
-          header: true,
-          skipEmptyLines: true,
-          complete: results => {
-            if (results.errors.length) {
-              setBulkUploadResult({ error: 'CSV parse error: ' + results.errors[0].message });
-              resolve();
-              return;
-            }
-            feedsToAdd = feedsToAdd.concat(
-              results.data.map(row => ({
-                url: row.url || row.URL || '',
-                name: row.name || row.Name || '',
-                apiBackupUrl: row.apiBackupUrl || row.APIBackupUrl || row['API Backup URL'] || ''
-              })).filter(f => f.url)
-            );
-            resolve();
-          },
-          error: err => {
-            setBulkUploadResult({ error: 'CSV parse error: ' + err.message });
-            resolve();
-          }
-        });
-      });
-    }
-    if (!uniqueFeedsToAdd.length) {
-      setBulkUploadResult({ error: skippedCount ? `All feeds already exist. (${skippedCount} skipped)` : 'No valid feeds found.' });
-      setBulkUploading(false);
-      return;
-    }
-    // Add feeds one by one
-    let successCount = 0, failCount = 0, errors = [];
-    for (const feed of uniqueFeedsToAdd) {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        await axios.post(`${apiUrl}/api/user/rss-feeds`, {
-          ...feed,
-          type: activeTab === 'jobs' ? 'job' : 'scholarship'
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        successCount++;
-      } catch (err) {
-        failCount++;
-        errors.push(feed.url + ': ' + (err.response?.data?.error || err.message));
-      }
-    }
-    setBulkUploadResult({ successCount, failCount, errors, skippedCount });
-    setBulkText('');
-    setBulkCsvFile(null);
-    fetchFeeds();
-    setBulkUploading(false);
+    // Implementation for bulk upload
+    console.log('Bulk upload not implemented yet');
   };
 
+  // Handle export feeds
   const handleExportFeeds = () => {
-    if (!feeds.length) return;
-    const csv = Papa.unparse(feeds.map(({ url, name, apiBackupUrl }) => ({ url, name, apiBackupUrl })));
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const urlObj = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = urlObj;
-    a.download = `${activeTab}-rss-feeds.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(urlObj);
+    // Implementation for exporting feeds
+    console.log('Export feeds not implemented yet');
   };
 
-  // Add state for bulk selection
-  const [selectedFeeds, setSelectedFeeds] = useState([]);
-  const handleSelectFeed = (id) => {
-    setSelectedFeeds(selectedFeeds.includes(id)
-      ? selectedFeeds.filter(fid => fid !== id)
-      : [...selectedFeeds, id]);
-  };
-  const handleSelectAllFeeds = () => {
-    if (selectedFeeds.length === feeds.length) {
-      setSelectedFeeds([]);
-    } else {
-      setSelectedFeeds(feeds.map(f => f._id));
-    }
-  };
+  // Handle bulk delete feeds
   const handleBulkDeleteFeeds = async () => {
-    if (!selectedFeeds.length) return;
-    setSaving(true);
-    setError('');
-    setSuccess(false);
-    const token = localStorage.getItem('token');
+    if (selectedFeeds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedFeeds.length} selected feeds?`)) return;
+    
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      await Promise.all(selectedFeeds.map(id =>
-        axios.delete(`${apiUrl}/api/user/rss-feeds/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ));
-      setSuccess(true);
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      await Promise.all(
+        selectedFeeds.map(feedId => 
+          axios.delete(`/api/feeds/website-links/${feedId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        )
+      );
+      
+      setFeeds(feeds.filter(feed => !selectedFeeds.includes(feed._id)));
       setSelectedFeeds([]);
-      fetchFeeds();
+      setSuccess(`Successfully deleted ${selectedFeeds.length} feeds`);
     } catch (err) {
-      setError('Failed to delete selected RSS feeds');
+      setError('Failed to delete selected feeds');
+      console.error('Error deleting feeds:', err);
     } finally {
       setSaving(false);
     }
   };
+
+  // Handle select all feeds
+  const handleSelectAllFeeds = (e) => {
+    if (e.target.checked) {
+      setSelectedFeeds(feeds.map(feed => feed._id));
+    } else {
+      setSelectedFeeds([]);
+    }
+  };
+
+  // Handle select feed
+  const handleSelectFeed = (feedId) => {
+    setSelectedFeeds(prev => 
+      prev.includes(feedId)
+        ? prev.filter(id => id !== feedId)
+        : [...prev, feedId]
+    );
+  };
+
+  // Handle save alert keywords
+  const handleSaveAlertKeywords = async () => {
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      await axios.post(
+        '/api/preferences/alert-keywords',
+        { 
+          type: activeTab,
+          keywords: alertKeywords.split(/[,\n]+/).map(k => k.trim()).filter(Boolean)
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setAlertKeywordsSaved(true);
+      setSuccess('Alert keywords saved successfully!');
+      setTimeout(() => setAlertKeywordsSaved(false), 3000);
+    } catch (err) {
+      setError('Failed to save alert keywords');
+      console.error('Error saving alert keywords:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Render the component
+  if (loading) {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto py-8 px-4">
+          <h1 className="text-2xl font-bold mb-6">Preferences</h1>
+          <div className="bg-white rounded-lg shadow p-6">
+            <p>Loading your preferences...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto py-10 px-4">
-        {/* Profile Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-bold text-blue-800 mb-2 flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-blue-400"></span>
-            Profile Details
-          </h2>
-          <p className="text-gray-600 mb-6">Update your profile information and password.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Name"
-              value={profile.name}
-              onChange={e => setProfile({ ...profile, name: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={profile.email}
-              onChange={e => setProfile({ ...profile, email: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <h1 className="text-2xl font-bold mb-6">Website Feeds</h1>
+        
+        {/* Success/Error Messages */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
           </div>
-          <input
-            type="password"
-            placeholder="New Password (leave blank to keep current)"
-            value={profilePassword}
-            onChange={e => setProfilePassword(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
-          />
-          <button
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition font-semibold mt-2"
-            onClick={handleProfileSave}
-            disabled={profileLoading}
-          >
-            {profileLoading ? 'Saving...' : 'Save Profile'}
-          </button>
-          {profileError && <p className="text-red-600 mt-2 font-medium">{profileError}</p>}
-          {profileSuccess && <p className="text-green-600 mt-2 font-medium">Profile updated!</p>}
+        )}
+        
+        {success && (
+          <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+            {success}
+          </div>
+        )}
+
+        {/* Add New Website Form */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Add New Website</h2>
+          <form onSubmit={addWebsiteLink} className="flex flex-col space-y-4">
+            <div>
+              <label htmlFor="websiteUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                Website URL
+              </label>
+              <input
+                type="url"
+                id="websiteUrl"
+                value={newLink}
+                onChange={(e) => setNewLink(e.target.value)}
+                placeholder="https://example.com"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Enter the URL of the website you want to track for job postings.
+              </p>
+            </div>
+            <button
+              type="submit"
+              disabled={saving || !newLink.trim()}
+              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                saving || !newLink.trim()
+                  ? 'bg-blue-300 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            >
+              {saving ? 'Adding...' : 'Add Website'}
+            </button>
+          </form>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
+        {/* Website Links List */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold">Your Tracked Websites</h2>
+          </div>
+          
+          {websiteLinks.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">
+              <p>You haven't added any websites yet.</p>
+              <p className="mt-1">Add a website above to start tracking job postings.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {websiteLinks.map((link) => (
+                <li key={link._id} className="p-4 hover:bg-gray-50">
+                  {editingLink?._id === link._id ? (
+                    <form onSubmit={updateWebsiteLink} className="flex items-center space-x-4">
+                      <input
+                        type="url"
+                        value={editUrl}
+                        onChange={(e) => setEditUrl(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={cancelEditing}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={saving || !editUrl.trim()}
+                        className="px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        {saving ? 'Saving...' : 'Save'}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {link.name || 'Untitled Feed'}
+                        </p>
+                        <p className="text-sm text-gray-500 truncate">{link.url}</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => startEditing(link)}
+                          className="p-1 text-gray-400 hover:text-gray-600 focus:outline-none"
+                          title="Edit"
+                        >
+                          <PencilIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => removeWebsiteLink(link._id)}
+                          className="p-1 text-red-400 hover:text-red-600 focus:outline-none"
+                          title="Remove"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Tab Navigation */}
+          <div className="flex border-b border-gray-200 mb-6">
             <button
-              className={`flex-1 flex items-center justify-center px-4 py-2 rounded-md font-medium transition ${
+              className={`flex items-center px-4 py-2 text-sm font-medium rounded-t-lg mr-2 ${
                 activeTab === 'jobs'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -661,10 +559,10 @@ export default function Preferences() {
               onClick={() => setActiveTab('jobs')}
             >
               <BriefcaseIcon className="w-5 h-5 mr-2" />
-              Remote Jobs
+              Jobs
             </button>
             <button
-              className={`flex-1 flex items-center justify-center px-4 py-2 rounded-md font-medium transition ${
+              className={`flex items-center px-4 py-2 text-sm font-medium rounded-t-lg ${
                 activeTab === 'scholarships'
                   ? 'bg-white text-green-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -688,7 +586,7 @@ export default function Preferences() {
             <div className="flex gap-2 mb-4">
               <input
                 type="text"
-                placeholder={`Search for ${activeTab === 'jobs' ? 'jobs' : 'scholarships'}...`}
+                placeholder={activeTab === 'jobs' ? 'Search for jobs...' : 'Search for scholarships...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -704,6 +602,11 @@ export default function Preferences() {
             </div>
 
             {/* Search Results */}
+            {(searchQuery && searchResults.length === 0 && !searching) && (
+              <div className="text-center py-4 text-gray-500">
+                No {activeTab} found matching "{searchQuery}". Try different keywords.
+              </div>
+            )}
             {searchResults.length > 0 && (
               <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-800 mb-3">

@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  output: process.env.CAPACITOR_BUILD === 'true' ? 'export' : undefined,
   // ...any other config you have
 };
 

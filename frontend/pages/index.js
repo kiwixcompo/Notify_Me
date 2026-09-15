@@ -115,13 +115,13 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Auth Buttons */}
-          <div className="flex flex-col md:flex-row justify-center gap-4 mb-6 w-full max-w-md">
-            <a href="/login" className="flex-1 px-8 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 hover:scale-105 active:scale-95 transition font-semibold text-lg text-center">
-              Login
+          {/* Direct Access Buttons */}
+          <div className="flex flex-col md:flex-row justify-center gap-4 mb-6 w-full max-w-lg">
+            <a href="/register" className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl shadow hover:bg-blue-700 hover:scale-105 active:scale-95 transition font-semibold text-base text-center flex items-center justify-center gap-2">
+              Sign up
             </a>
-            <a href="/register" className="flex-1 px-8 py-3 bg-white text-blue-700 border border-blue-600 rounded-lg shadow hover:bg-blue-50 hover:scale-105 active:scale-95 transition font-semibold text-lg text-center">
-              Register
+            <a href="/login" className="flex-1 px-6 py-3 bg-white text-slate-800 border border-slate-300 rounded-xl shadow hover:bg-slate-50 hover:scale-105 active:scale-95 transition font-semibold text-base text-center">
+              Login
             </a>
           </div>
           

@@ -2,6 +2,38 @@ const Parser = require('rss-parser');
 const axios = require('axios');
 const xml2js = require('xml2js');
 const crypto = require('crypto');
+const cheerio = require('cheerio');
+const { parseString, Builder } = require('xml2js');
+const { promisify } = require('util');
+const parseXml = promisify(parseString);
+// Cache for feed discovery and generation
+const feedCache = new Map();
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+// Helper function to extract keywords from text
+function extractKeywords(text, count = 10) {
+  if (!text) return [];
+  
+  // Basic tokenization and filtering
+  const words = text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .split(/\s+/)
+    .filter(word => word.length > 3) // Only consider words longer than 3 characters
+    .filter(word => !/^\d+$/.test(word)); // Filter out numbers
+    
+  // Simple frequency counting
+  const freq = {};
+  words.forEach(word => {
+    freq[word] = (freq[word] || 0) + 1;
+  });
+  
+  // Sort by frequency and get top N
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, count)
+    .map(([word]) => word);
+}
 
 // Create a reusable parser with proper headers
 function createParser() {
@@ -635,12 +667,349 @@ async function fetchItemsFromRSS(feeds, itemType = 'job') {
   return fetchItemsFromMultipleSources(feeds, itemType);
 }
 
+/**
+ * Generate RSS feed from a webpage
+ * @param {string} url - The URL of the webpage
+ * @param {object} options - Options for feed generation
+ * @param {string} [options.type='job'] - Type of feed (job or scholarship)
+ * @param {string[]} [options.keywords=[]] - Keywords to filter content
+ * @param {number} [options.maxItems=20] - Maximum number of items to include
+ * @returns {Promise<object>} - Generated feed in RSS format with metadata
+ */
+async function generateFeedFromWebpage(url, options = {}) {
+  const { type = 'job', keywords = [], maxItems = 20 } = options;
+  const cacheKey = `webpage:${url}:${type}:${keywords.sort().join(',')}`;
+  const now = Date.now();
+  
+  // Check cache first
+  const cached = feedCache.get(cacheKey);
+  if (cached && (now - cached.timestamp < CACHE_TTL)) {
+    return { ...cached.data, _cached: true };
+  }
+  
+  try {
+    // Fetch the webpage
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Referer': 'https://www.google.com/'
+      },
+      timeout: 15000
+    });
+    
+    if (!response.data) {
+      throw new Error('No content received from the webpage');
+    }
+    
+    const $ = cheerio.load(response.data);
+    const title = $('title').text() || new URL(url).hostname;
+    const description = $('meta[name="description"]').attr('content') || `Content from ${url}`;
+    
+    // Try to find article/list items
+    let items = [];
+    
+    // Common selectors for articles/items
+    const selectors = [
+      'article', '.article', '.post', '.item',
+      '[role="article"]', '.card', '.list-item',
+      'li', '.entry', '.teaser', '.summary'
+    ];
+    
+    // Find all potential items
+    for (const selector of selectors) {
+      if (items.length >= maxItems) break;
+      
+      $(selector).each((i, el) => {
+        if (items.length >= maxItems) return false;
+        
+        const $el = $(el);
+        const itemTitle = $el.find('h1, h2, h3, .title, .entry-title, [itemprop="headline"]').first().text().trim();
+        let link = $el.find('a').first().attr('href');
+        
+        // Skip if no title or link
+        if (!itemTitle || !link) return;
+        
+        // Make relative URLs absolute
+        if (!link.startsWith('http')) {
+          const baseUrl = new URL(url);
+          link = new URL(link, baseUrl.origin).toString();
+        }
+        
+        // Extract description/content
+        let description = $el.find('p, .description, .content, [itemprop="description"]')
+                         .first()
+                         .text()
+                         .trim()
+                         .substring(0, 200) + '...';
+        
+        // Extract publication date
+        let pubDate = new Date().toISOString();
+        const dateEl = $el.find('time, .date, .published, [itemprop="datePublished"]').first();
+        if (dateEl.length) {
+          const dateStr = dateEl.attr('datetime') || dateEl.text().trim();
+          const parsedDate = new Date(dateStr);
+          if (!isNaN(parsedDate.getTime())) {
+            pubDate = parsedDate.toISOString();
+          }
+        }
+        
+        // Extract categories/tags
+        const categories = [];
+        $el.find('a[rel="tag"], .tag, .category, [itemprop="keywords"]').each((i, catEl) => {
+          const catText = $(catEl).text().trim();
+          if (catText) categories.push(catText);
+        });
+        
+        items.push({
+          title: itemTitle,
+          link: link,
+          description: description,
+          pubDate: pubDate,
+          categories: categories,
+          guid: link, // Use link as GUID if no explicit GUID exists
+          content: $el.html() || '' // Store full HTML content for reference
+        });
+      });
+    }
+    
+    // If no items found with article-like elements, try to find links
+    if (items.length === 0) {
+      $('a').each((i, el) => {
+        const $el = $(el);
+        const href = $el.attr('href');
+        const text = $el.text().trim();
+        
+        // Skip if no href or text is too short/long
+        if (!href || text.length < 10 || text.length > 200 || 
+            !/^https?:\/\//.test(href) ||
+            items.some(item => item.link === href)) {
+          return;
+        }
+        
+        // Make relative URLs absolute
+        let fullUrl;
+        try {
+          fullUrl = new URL(href, url).toString();
+        } catch (e) {
+          return; // Skip invalid URLs
+        }
+        
+        items.push({
+          title: text,
+          link: fullUrl,
+          description: text + '...',
+          pubDate: new Date().toISOString(),
+          categories: [],
+          guid: fullUrl,
+          content: text
+        });
+      });
+    }
+    
+    // Filter by keywords if provided
+    if (keywords.length > 0) {
+      const keywordSet = new Set(keywords.map(k => k.toLowerCase()));
+      items = items.filter(item => {
+        const text = `${item.title} ${item.description} ${item.content}`.toLowerCase();
+        return Array.from(keywordSet).some(keyword => text.includes(keyword));
+      });
+    }
+    
+    // Limit number of items
+    items = items.slice(0, maxItems);
+    
+    // Generate RSS feed
+    const feed = {
+      title: title,
+      description: description,
+      link: url,
+      items: items.map(item => ({
+        title: item.title,
+        link: item.link,
+        pubDate: item.pubDate,
+        content: item.description,
+        contentSnippet: item.description.replace(/<[^>]*>?/gm, '').substring(0, 250) + '...',
+        guid: item.guid || item.link,
+        isoDate: item.pubDate,
+        categories: item.categories || []
+      }))
+    };
+    
+    // Cache the result
+    const result = {
+      success: true,
+      feed: feed,
+      source: {
+        type: 'webpage',
+        url: url,
+        title: title,
+        description: description
+      },
+      stats: {
+        totalItems: items.length,
+        returnedItems: items.length,
+        keywordsUsed: keywords.length > 0 ? keywords : null,
+        generatedAt: new Date().toISOString()
+      }
+    };
+    
+    feedCache.set(cacheKey, { data: result, timestamp: now });
+    return result;
+  } catch (error) {
+    console.error(`Error generating feed from ${url}:`, error);
+    return {
+      success: false,
+      error: `Failed to generate feed: ${error.message}`,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
+  }
+}
+
+/**
+ * Generate RSS feed from a website URL (main entry point)
+ * @param {string} url - The URL of the website
+ * @param {object} options - Options for feed generation
+ * @param {string} [options.type='job'] - Type of feed (job or scholarship)
+ * @param {string[]} [options.keywords=[]] - Keywords to filter content
+ * @param {number} [options.maxItems=20] - Maximum number of items to include
+ * @returns {Promise<object>} - Generated feed in RSS format with metadata
+ */
+async function generateFeedFromUrl(url, options = {}) {
+  const { type = 'job', keywords = [], maxItems = 20 } = options;
+  const cacheKey = `url:${url}:${type}:${keywords.sort().join(',')}`;
+  const now = Date.now();
+  
+  // Check cache first
+  const cached = feedCache.get(cacheKey);
+  if (cached && (now - cached.timestamp < CACHE_TTL)) {
+    return { ...cached.data, _cached: true };
+  }
+  
+  try {
+    // First, try to discover an existing RSS/Atom feed
+    const feedUrl = await discoverFeedUrl(url);
+    
+    if (feedUrl) {
+      // If we found a feed, fetch and parse it
+      const feed = await fetchAndParseFeed(feedUrl, { type, keywords, maxItems });
+      if (feed.success) {
+        const result = {
+          ...feed,
+          source: {
+            type: 'discovered-feed',
+            url: feedUrl,
+            originalUrl: url,
+            title: feed.feed?.title || `Feed from ${new URL(url).hostname}`,
+            description: feed.feed?.description || `Discovered feed from ${url}`
+          }
+        };
+        
+        // Cache the result
+        feedCache.set(cacheKey, { data: result, timestamp: now });
+        return result;
+      }
+    }
+    
+    // If no feed found or failed to parse, generate from webpage
+    return await generateFeedFromWebpage(url, { type, keywords, maxItems });
+    
+  } catch (error) {
+    console.error(`Error generating feed from ${url}:`, error);
+    return {
+      success: false,
+      error: `Failed to generate feed: ${error.message}`,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
+  }
+}
+
+/**
+ * Discover RSS/Atom feed URLs in a webpage
+ * @param {string} url - The URL of the webpage to check
+ * @returns {Promise<string|null>} - The URL of the discovered feed or null if none found
+ */
+async function discoverFeedUrl(url) {
+  // Implement feed discovery logic here
+  // For now, just return null
+  return null;
+}
+
+/**
+ * Fetch and parse a feed with options
+ * @param {string} feedUrl - The URL of the feed to fetch and parse
+ * @param {object} options - Options for feed parsing
+ * @param {string} [options.type='job'] - Type of feed (job or scholarship)
+ * @param {string[]} [options.keywords=[]] - Keywords to filter content
+ * @param {number} [options.maxItems=20] - Maximum number of items to include
+ * @returns {Promise<object>} - Parsed feed with metadata
+ */
+async function fetchAndParseFeed(feedUrl, options = {}) {
+  const { type = 'job', keywords = [], maxItems = 20 } = options;
+  
+  try {
+    // Use the existing feed parsing logic
+    const feed = await detectFeedFormat(feedUrl);
+    
+    if (!feed || !feed.items || !feed.items.length) {
+      throw new Error('No valid feed items found');
+    }
+    
+    // Filter by keywords if provided
+    let items = [...feed.items];
+    if (keywords.length > 0) {
+      const keywordSet = new Set(keywords.map(k => k.toLowerCase()));
+      items = items.filter(item => {
+        const text = `${item.title || ''} ${item.content || ''} ${item.summary || ''}`.toLowerCase();
+        return keywords.some(keyword => text.includes(keyword.toLowerCase()));
+      });
+    }
+    
+    // Limit number of items
+    items = items.slice(0, maxItems);
+    
+    return {
+      success: true,
+      feed: {
+        ...feed,
+        items: items.map(item => ({
+          ...item,
+          categories: item.categories || extractKeywords(`${item.title} ${item.content || ''}`, 5)
+        }))
+      },
+      stats: {
+        totalItems: feed.items.length,
+        filteredItems: items.length,
+        keywordsUsed: keywords
+      }
+    };
+    
+  } catch (error) {
+    console.error(`Error parsing feed ${feedUrl}:`, error);
+    return {
+      success: false,
+      error: `Failed to parse feed: ${error.message}`
+    };
+  }
+}
+
+// Export all functions
 module.exports = { 
   fetchJobsFromRSS, 
   fetchScholarshipsFromRSS,
   fetchItemsFromRSS,
   fetchItemsFromMultipleSources,
-  parseXMLContent,
+  fetchFromAlternativeSource,
+  detectFeedFormat,
   fetchXMLFromURL,
-  detectFeedFormat
-}; 
+  fetchJSONFromURL,
+  fetchCSVFromURL,
+  parseXMLContent,
+  parseJSONContent,
+  parseCSVContent,
+  generateFeedFromWebpage,
+  generateFeedFromUrl,
+  discoverFeedUrl,
+  fetchAndParseFeed
+};
