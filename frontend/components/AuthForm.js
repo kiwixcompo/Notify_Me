@@ -60,7 +60,7 @@ export default function AuthForm({ mode }) {
       if (err.response && err.response.data && err.response.data.error) {
         setError(err.response.data.error);
       } else if (err.message && err.message.includes('Network')) {
-        setError('Network error: Please check your connection and API URL.');
+        setError(`Network error: The app tried to connect to "${apiUrl}" but was blocked. Ensure the URL is correct and deployed.`);
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
