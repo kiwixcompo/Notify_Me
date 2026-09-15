@@ -262,6 +262,15 @@ export default function Dashboard() {
     if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
     return `${Math.floor(diff / 1440)}d ago`;
   };
+  if (!isClient) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-gray-500 font-medium animate-pulse">Loading dashboard...</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

@@ -4,11 +4,19 @@ const User = require('../models/User');
 const { requireAuth } = require('../controllers/userController');
 const webpush = require('web-push');
 
-webpush.setVapidDetails(
-  `mailto:${process.env.EMAIL_FROM || 'test@example.com'}`,
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(
+      `mailto:${process.env.EMAIL_FROM || 'test@example.com'}`,
+      process.env.VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
+  } catch (err) {
+    console.error('Failed to configure web-push:', err);
+  }
+} else {
+  console.warn('WARNING: VAPID keys are missing. Push notifications will not work.');
+}
 
 // POST /api/push/subscribe
 router.post('/subscribe', requireAuth, async (req, res) => {
