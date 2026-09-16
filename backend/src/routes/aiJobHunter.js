@@ -29,6 +29,11 @@ async function callGroqAPI(prompt, apiKey, format = 'json_object', temperature =
   return format === 'json_object' ? JSON.parse(content) : content;
 }
 
+// GET /api/job-hunter/version
+router.get('/version', (req, res) => {
+  res.json({ service: 'ai-job-hunter', runtime: 'node-native-v2', buildTime: '2026-09-16' });
+});
+
 // POST /api/job-hunter/search
 router.post('/search', optionalAuth, async (req, res) => {
   try {
