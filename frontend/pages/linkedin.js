@@ -21,6 +21,7 @@ export default function LinkedInCrawler() {
   // Phase 2: Feed Posts
   const [postQuery, setPostQuery] = useState('Computer Science');
   const [postType, setPostType] = useState('all'); // 'all', 'scholarship', 'job'
+  const [postTimeFilter, setPostTimeFilter] = useState('any'); // 'any', '24h', 'week', 'month'
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(false);
 
@@ -113,6 +114,7 @@ export default function LinkedInCrawler() {
         params: {
           query: postQuery,
           type: postType,
+          timeFilter: postTimeFilter,
           maxResults: 20
         },
         headers: getHeaders()
@@ -565,7 +567,7 @@ export default function LinkedInCrawler() {
                 }}
                 className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end"
               >
-                <div className="sm:col-span-6">
+                <div className="sm:col-span-5">
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Search Focus / Domain
                   </label>
@@ -578,18 +580,34 @@ export default function LinkedInCrawler() {
                   />
                 </div>
 
-                <div className="sm:col-span-4">
+                <div className="sm:col-span-3">
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Opportunity Classification
+                    Classification
                   </label>
                   <select
                     value={postType}
                     onChange={(e) => setPostType(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
-                    <option value="all">🌍 All Unstructured Posts</option>
-                    <option value="scholarship">🎓 Supervisor Grants & PhD Positions</option>
+                    <option value="all">🌍 All User Posts</option>
+                    <option value="scholarship">🎓 Supervisor Grants &amp; PhD</option>
                     <option value="job">💼 Recruiter Hiring Shouts ("DM me")</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Timeframe
+                  </label>
+                  <select
+                    value={postTimeFilter}
+                    onChange={(e) => setPostTimeFilter(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="any">⏳ Any Time</option>
+                    <option value="24h">⚡ Past 24 Hours</option>
+                    <option value="week">📅 Past Week</option>
+                    <option value="month">🗓️ Past Month</option>
                   </select>
                 </div>
 
@@ -607,9 +625,9 @@ export default function LinkedInCrawler() {
 
             {/* Informational Advisory */}
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 space-y-1">
-              <p className="font-bold">💡 How Phase 2 Operates (Safe Zero-Account Mode):</p>
+              <p className="font-bold">💡 How Phase 2 Operates (Direct User Posts &amp; Unstructured Calls):</p>
               <p>
-                Professors, principal investigators, and hiring recruiters regularly post funding or direct-hire notices without formal job listings. Our parser extracts <strong>direct contact emails</strong>, <strong>remote eligibility</strong>, and <strong>application links</strong> while completely bypassing account-suspension risks.
+                Unlike standard job board scrapers, Phase 2 searches <strong>actual posts made by individual recruiters, university professors, and lab supervisors</strong> on LinkedIn. The engine automatically extracts <strong>contact emails, phone numbers, application criteria / requirements ("What's needed")</strong>, and gives you a direct link to locate and open the exact post on LinkedIn.
               </p>
             </div>
 
@@ -619,6 +637,9 @@ export default function LinkedInCrawler() {
                 <h3 className="text-base font-bold text-slate-900">
                   Extracted Feed Posts ({posts.length})
                 </h3>
+                <span className="text-xs text-slate-500">
+                  Timeframe: {postTimeFilter === '24h' ? 'Last 24 Hours' : postTimeFilter === 'week' ? 'Past 7 Days' : postTimeFilter === 'month' ? 'Past Month' : 'All Recent'}
+                </span>
               </div>
 
               {postsLoading ? (
@@ -647,7 +668,7 @@ export default function LinkedInCrawler() {
                                 ? 'bg-purple-50 text-purple-700 border border-purple-200'
                                 : 'bg-blue-50 text-blue-700 border border-blue-200'
                             }`}>
-                              {post.metadata?.category === 'SCHOLARSHIP' ? '🎓 Scholarship / PhD' : '💼 Hiring Post'}
+                              {post.metadata?.category === 'SCHOLARSHIP' ? '🎓 Supervisor Post / PhD' : '💼 Recruiter Post'}
                             </span>
                             {post.metadata?.isRemote && (
                               <span className="px-2 py-0.5 text-xs font-semibold rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -655,23 +676,52 @@ export default function LinkedInCrawler() {
                               </span>
                             )}
                           </div>
-                          <span className="text-[11px] text-slate-400">Post Extract</span>
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            {post.postedTime || 'Recent'}
+                          </span>
                         </div>
 
-                        <h4 className="text-sm font-bold text-slate-900 mt-2.5 line-clamp-2">
-                          {post.title}
-                        </h4>
+                        {/* Author / Poster Badge */}
+                        <div className="mt-2 text-xs text-slate-500 flex items-center gap-1.5">
+                          <span>👤 Posted by:</span>
+                          <span className="font-semibold text-slate-800">{post.author || 'LinkedIn Member'}</span>
+                        </div>
 
-                        <p className="text-xs text-slate-600 mt-2 leading-relaxed line-clamp-3">
-                          {post.snippet}
-                        </p>
+                        {/* Complete Post Content snippet */}
+                        <div className="mt-2.5 p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs text-slate-800 leading-relaxed font-sans whitespace-pre-wrap">
+                          {post.fullContent || post.snippet || post.title}
+                        </div>
 
-                        {/* Extracted Metadata Pills */}
-                        <div className="mt-3.5 space-y-1.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs">
+                        {/* What's Needed / Requirements Section */}
+                        {post.metadata?.whatsNeeded && post.metadata.whatsNeeded.length > 0 && (
+                          <div className="mt-3 p-3 bg-amber-50/70 border border-amber-200 rounded-lg text-xs space-y-1">
+                            <span className="font-bold text-amber-900 block flex items-center gap-1">
+                              <span>📋</span> What's Needed / Requirements:
+                            </span>
+                            <ul className="list-disc list-inside space-y-0.5 text-amber-950 font-medium">
+                              {post.metadata.whatsNeeded.map((req, rIdx) => (
+                                <li key={rIdx}>{req}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Extracted Contact & Application Info */}
+                        <div className="mt-3 space-y-1.5 bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 text-xs">
                           {post.metadata?.extractedEmails && post.metadata.extractedEmails.length > 0 && (
                             <div className="flex items-center gap-1.5 text-emerald-800 font-medium">
-                              <span>✉️ Contact:</span>
-                              <span className="font-mono">{post.metadata.extractedEmails.join(', ')}</span>
+                              <span>✉️ Direct Email:</span>
+                              <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-200">
+                                {post.metadata.extractedEmails.join(', ')}
+                              </span>
+                            </div>
+                          )}
+                          {post.metadata?.extractedPhones && post.metadata.extractedPhones.length > 0 && (
+                            <div className="flex items-center gap-1.5 text-blue-800 font-medium">
+                              <span>📞 Phone:</span>
+                              <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-blue-200">
+                                {post.metadata.extractedPhones.join(', ')}
+                              </span>
                             </div>
                           )}
                           {post.metadata?.deadline && (
@@ -682,7 +732,7 @@ export default function LinkedInCrawler() {
                           )}
                           {post.metadata?.extractedLinks && post.metadata.extractedLinks.length > 0 && (
                             <div className="flex items-center gap-1.5 text-indigo-800 truncate">
-                              <span>🔗 Link:</span>
+                              <span>🔗 Direct Link:</span>
                               <a href={post.metadata.extractedLinks[0]} target="_blank" rel="noreferrer" className="underline truncate">
                                 {post.metadata.extractedLinks[0]}
                               </a>
@@ -692,14 +742,15 @@ export default function LinkedInCrawler() {
                       </div>
 
                       {/* Actions */}
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                         <a
                           href={post.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5"
+                          title="Open LinkedIn search directly to this exact post"
                         >
-                          View Original Post ↗
+                          <span>🔎 View Post on LinkedIn ↗</span>
                         </a>
 
                         <button
@@ -708,7 +759,7 @@ export default function LinkedInCrawler() {
                             post.metadata?.category === 'SCHOLARSHIP' ? 'scholarship' : 'job',
                             `post_${idx}`
                           )}
-                          className="px-3 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 text-xs font-bold rounded-lg border border-slate-200 transition-colors"
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 text-xs font-bold rounded-lg border border-slate-200 transition-colors"
                         >
                           {savedSuccessMap[`post_${idx}`] ? '✓ Saved' : '+ Save to Studio'}
                         </button>

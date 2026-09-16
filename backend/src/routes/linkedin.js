@@ -42,14 +42,15 @@ router.get('/job/:id', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/linkedin/posts - Phase 2: Recruiter shouts & Supervisor scholarships (SERP / public posts)
+// GET /api/linkedin/posts - Phase 2: Recruiter shouts & Supervisor scholarships (Actual LinkedIn Posts)
 router.get('/posts', requireAuth, async (req, res) => {
   try {
-    const { query, type, maxResults } = req.query;
+    const { query, type, timeFilter, maxResults } = req.query;
     const posts = await crawlLinkedInFeedPostsSERP({
       query: query || '',
       type: type || 'all',
-      maxResults: parseInt(maxResults) || 15
+      timeFilter: timeFilter || 'any',
+      maxResults: parseInt(maxResults) || 20
     });
 
     res.json({ success: true, count: posts.length, posts });
