@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const multer = require('multer');
-const { requireAuth } = require('../controllers/userController');
+const { requireAuth, optionalAuth } = require('../controllers/userController');
 const Job = require('../models/Job');
 const cheerio = require('cheerio');
 const crypto = require('crypto');
@@ -30,7 +30,7 @@ async function callGroqAPI(prompt, apiKey, format = 'json_object', temperature =
 }
 
 // POST /api/job-hunter/search
-router.post('/search', requireAuth, async (req, res) => {
+router.post('/search', optionalAuth, async (req, res) => {
   try {
     const { keywords, location, max_results, custom_urls } = req.body;
     let jobs = [];
@@ -144,7 +144,7 @@ ${rawText.substring(0, 4000)}
 // POST /api/job-hunter/test-key
 router.post('/test-key', requireAuth, async (req, res) => {
   try {
-    const { api_key } = req.body;
+    const api_key = req.body.api_key || req.body.groq_api_key;
     if (!api_key) return res.status(400).json({ valid: false, message: 'Missing API key' });
     await axios.get('https://api.groq.com/openai/v1/models', {
       headers: { 'Authorization': `Bearer ${api_key}` },

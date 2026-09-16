@@ -83,6 +83,11 @@ export default function AIJobHunter() {
 
       setJobs(res.data.jobs || []);
     } catch (err) {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        return;
+      }
       setError(err.response?.data?.error || 'Failed to search jobs. Ensure backend is running.');
     } finally {
       setLoading(false);

@@ -194,6 +194,19 @@ export default function Layout({ children }) {
                   <span>Clear</span>
                 </button>
 
+                {/* Logout / Switch Account */}
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                  }}
+                  className="hidden sm:flex px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors items-center gap-1 min-h-[44px]"
+                  title="Log out"
+                >
+                  <span aria-hidden="true">🚪</span>
+                  <span>Log out</span>
+                </button>
+
                 {/* Mobile: compact top-right notification/profile area (hamburger removed) */}
                 <div className="md:hidden flex items-center gap-2">
                   <Link

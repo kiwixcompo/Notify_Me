@@ -2,7 +2,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
 
 // Auth middleware
 async function requireAuth(req, res, next) {
@@ -21,6 +21,23 @@ async function requireAuth(req, res, next) {
   }
 
   return res.status(401).json({ error: 'Not authorized, no token' });
+}
+
+// Optional Auth middleware (populates req.userId if valid token, but does not reject request)
+async function optionalAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith('Bearer ')) {
+    try {
+      const token = auth.split(' ')[1];
+      const payload = jwt.verify(token, JWT_SECRET);
+      if (payload && payload.userId) {
+        req.userId = payload.userId;
+      }
+    } catch (err) {
+      // Ignore token failure for optional routes
+    }
+  }
+  return next();
 }
 
 // GET preferences
@@ -52,4 +69,4 @@ async function updatePreferences(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, getPreferences, updatePreferences }; 
+module.exports = { requireAuth, optionalAuth, getPreferences, updatePreferences }; 
