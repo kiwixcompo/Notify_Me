@@ -13,6 +13,39 @@ const { fetchFormalJobs } = require('../services/linkedinCrawler');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Helper to safely extract text from PDF, DOCX, or text files
+async function parseDocumentText(file) {
+  const filename = (file.originalname || '').toLowerCase();
+  
+  if (filename.endsWith('.pdf')) {
+    // Check if pdf-parse is function (v1.x) or class/object (v2.x)
+    if (typeof pdfParse === 'function') {
+      const data = await pdfParse(file.buffer);
+      return data.text || '';
+    } else if (pdfParse && pdfParse.PDFParse) {
+      const parser = new pdfParse.PDFParse({ data: file.buffer });
+      const data = await parser.getText();
+      return data.text || '';
+    } else if (typeof pdfParse?.default === 'function') {
+      const data = await pdfParse.default(file.buffer);
+      return data.text || '';
+    } else {
+      // Fallback text extraction if binary contains readable ASCII streams
+      const raw = file.buffer.toString('binary');
+      const textMatches = raw.match(/\(([^()]+)\)Tj/g);
+      if (textMatches) {
+        return textMatches.map(m => m.slice(1, -3)).join(' ');
+      }
+      throw new Error('Unsupported PDF parsing environment.');
+    }
+  } else if (filename.endsWith('.docx')) {
+    const data = await mammoth.extractRawText({ buffer: file.buffer });
+    return data.value || '';
+  } else {
+    return file.buffer.toString('utf-8');
+  }
+}
+
 // Helper function to fetch real-time jobs from live open feeds
 async function fetchRealtimeJobs({ keywords = 'Software Engineer', location = 'Remote', maxResults = 25 }) {
   const isRemote = !location || location.toLowerCase().includes('remote') || location.toLowerCase().includes('worldwide');
@@ -198,20 +231,16 @@ router.post('/resume/upload', requireAuth, upload.fields([{ name: 'resume', maxC
 
     const { groq_api_key } = req.body;
     let rawText = '';
-
-    if (file.originalname.toLowerCase().endsWith('.pdf')) {
-      const data = await pdfParse(file.buffer);
-      rawText = data.text;
-    } else if (file.originalname.toLowerCase().endsWith('.docx')) {
-      const data = await mammoth.extractRawText({ buffer: file.buffer });
-      rawText = data.value;
-    } else {
-      rawText = file.buffer.toString('utf-8');
+    try {
+      rawText = await parseDocumentText(file);
+    } catch (parseErr) {
+      console.error('Document parsing exception:', parseErr);
+      return res.status(400).json({ error: `Failed to extract text from ${file.originalname}: ${parseErr.message}` });
     }
 
-    rawText = rawText.trim();
+    rawText = (rawText || '').trim();
     if (!rawText) {
-      return res.status(400).json({ error: 'Could not extract text from document.' });
+      return res.status(400).json({ error: 'The uploaded file contains no readable text. If it is an image/scanned PDF, please upload a text-based document or paste text directly.' });
     }
 
     let structured = { name: 'Candidate', skills: [] };
