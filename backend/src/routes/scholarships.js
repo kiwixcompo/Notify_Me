@@ -37,13 +37,13 @@ router.post('/crawler/save', requireAuth, async (req, res) => {
     const { item } = req.body;
     const scholarship = new Scholarship({
       title: item.title,
-      description: [] . Location: . Deadline: ,
+      description: `[${item.source}] ${item.benefits?.join(', ') || 'Scholarship Opportunity'}. Location: ${item.matchedCountries?.join(', ') || 'International'}. Deadline: ${item.rawDeadline || 'Check Link'}`,
       link: item.url,
       country: item.matchedCountries?.[0] || 'International',
       categories: [item.source, item.isFullyFunded ? 'Fully Funded' : 'Partially Funded'],
       amount: item.isFullyFunded ? 'Fully Funded (Tuition + Stipend)' : 'Tuition Support',
       deadline: item.deadline ? new Date(item.deadline) : null,
-      eligibility: item.benefits?.length ? Benefits:  : 'See application portal',
+      eligibility: item.benefits?.length ? `Benefits: ${item.benefits.join(', ')}` : 'See application portal',
       level: 'PhD / Postgraduate',
       field: item.isComputerScience ? 'Computer Science & Technology' : 'All Fields',
       createdAt: new Date()
@@ -66,15 +66,15 @@ router.post('/analyze-fit', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Groq API Key is required' });
     }
 
-    const prompt = \
+    const prompt = `
 ACT AS A DISTINGUISHED ACADEMIC ADVISOR AND POST-DOC MENTOR.
 Evaluate the alignment between the candidate and the PhD scholarship.
 
 Scholarship Details:
-\
+${scholarship_text}
 
 Candidate Profile:
-\
+${candidate_profile}
 
 RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
 {
@@ -98,7 +98,7 @@ RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
     "expectedContributions": "Contributions..."
   }
 }
-\;
+`;
 
     const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
       model: 'llama3-70b-8192',
@@ -107,7 +107,7 @@ RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
       response_format: { type: 'json_object' }
     }, {
       headers: {
-        'Authorization': \Bearer \\,
+        'Authorization': `Bearer ${groq_api_key}`,
         'Content-Type': 'application/json'
       },
       timeout: 60000
@@ -131,7 +131,7 @@ router.post('/generate-cold-email', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Groq API Key is required' });
     }
 
-    const prompt = \
+    const prompt = `
 ACT AS A DISTINGUISHED ACADEMIC MENTOR WHO SPECIALIZES IN HELPING TOP RESEARCHERS CONTACT PRINCIPAL INVESTIGATORS (PIs).
 Write a personalized, high-converting cold outreach email to a potential PhD supervisor or lab director.
 
@@ -142,12 +142,12 @@ KEY PRINCIPLES:
 - Keep it concise, respectful of their time, and clear in call-to-action.
 
 DETAILS:
-- Project Title / Focus: \
-- University / Lab: \
-- Supervisor / PI: \
-- Project Summary: \
-- Candidate Background: \
-- Candidate Name: \
+- Project Title / Focus: ${project_title}
+- University / Lab: ${university_or_lab}
+- Supervisor / PI: ${pi_name}
+- Project Summary: ${project_summary}
+- Candidate Background: ${candidate_background}
+- Candidate Name: ${candidate_name}
 
 RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
 {
@@ -163,7 +163,7 @@ RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
     "Tip 3 (e.g. follow up in 7 days)"
   ]
 }
-\;
+`;
 
     const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
       model: 'llama3-70b-8192',
@@ -172,7 +172,7 @@ RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
       response_format: { type: 'json_object' }
     }, {
       headers: {
-        'Authorization': \Bearer \\,
+        'Authorization': `Bearer ${groq_api_key}`,
         'Content-Type': 'application/json'
       },
       timeout: 30000

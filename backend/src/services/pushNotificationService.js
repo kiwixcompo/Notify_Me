@@ -6,7 +6,7 @@ let isConfigured = false;
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   try {
     webpush.setVapidDetails(
-      mailto: + (process.env.EMAIL_FROM || 'test@example.com'),
+      'mailto:' + (process.env.EMAIL_FROM || 'test@example.com'),
       process.env.VAPID_PUBLIC_KEY,
       process.env.VAPID_PRIVATE_KEY
     );
@@ -28,7 +28,7 @@ async function sendPushNotification(user, payload) {
       validSubscriptions.push(subscription);
     } catch (err) {
       if (err.statusCode === 404 || err.statusCode === 410) {
-        console.log(Push subscription expired or invalid for user , removing it.);
+        console.log(`Push subscription expired or invalid for user ${user._id}, removing it.`);
       } else {
         console.error('Error sending push notification:', err);
         validSubscriptions.push(subscription); // Keep it if it's a temporary error
