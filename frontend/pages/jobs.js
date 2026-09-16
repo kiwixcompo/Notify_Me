@@ -115,7 +115,7 @@ export default function AIJobHunter() {
 
   const handleScoreMatch = async (job) => {
     if (!resumeText) {
-      alert('Please upload or paste your resume in the Resume tab first!');
+      setTab('resume'); setError('Please upload or paste your resume in the Resume tab first.');
       setTab('resume');
       return;
     }
@@ -136,7 +136,7 @@ export default function AIJobHunter() {
 
   const handleGenerateCoverLetter = async (job) => {
     if (!resumeText) {
-      alert('Please upload or paste your resume in the Resume tab first!');
+      setTab('resume'); setError('Please upload or paste your resume in the Resume tab first.');
       setTab('resume');
       return;
     }
@@ -202,14 +202,39 @@ export default function AIJobHunter() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header banner */}
-        <div className="bg-gradient-to-r from-blue-900 to-indigo-800 rounded-2xl p-6 text-white shadow-lg">
+      <div className="space-y-0 md:space-y-6">
+
+        {/* ── Mobile Page Header (hidden on desktop) ── */}
+        <div className="md:hidden bg-gradient-to-r from-blue-700 to-indigo-700 px-4 pt-5 pb-4 text-white">
+          <h1 className="text-xl font-extrabold">💼 AI Job Hunter</h1>
+          <p className="text-blue-200 text-xs mt-0.5">Resume scoring · Cover letters · Pipeline tracking</p>
+
+          {/* Mobile Segmented Control */}
+          <div className="segmented-control mt-4 bg-blue-900/40">
+            {[
+              { id: 'search', label: '🔍 Search' },
+              { id: 'resume', label: '📄 Resume' },
+              { id: 'pipeline', label: `📊 Pipeline` },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={tab === t.id ? 'active' : ''}
+                style={tab === t.id ? { background: 'white', color: '#2563eb' } : { color: '#bfdbfe' }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Desktop Header Banner (hidden on mobile) ── */}
+        <div className="hidden md:block bg-gradient-to-r from-blue-900 to-indigo-800 rounded-2xl p-6 text-white shadow-lg mx-3 sm:mx-0">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight">💼 AI Job Hunter</h1>
               <p className="text-blue-200 text-sm mt-1">
-                Autonomous remote job discovery, custom ATS links, semantic resume scoring & instant application drafts.
+                Autonomous remote job discovery, custom ATS links, semantic resume scoring &amp; instant application drafts.
               </p>
             </div>
             <div className="flex items-center space-x-2 bg-blue-950/50 p-1.5 rounded-xl border border-blue-700/50">
@@ -249,10 +274,11 @@ export default function AIJobHunter() {
             </div>
           </div>
         </div>
+        {/* End desktop header */}
 
         {/* Groq Key Configuration Banner */}
         {showKeyInput && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+          <div className="mx-4 md:mx-0 p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
                 🔑 Groq Cloud API Key (Free High-Speed LLM Inference)
@@ -278,7 +304,7 @@ export default function AIJobHunter() {
               <button
                 onClick={() => {
                   localStorage.setItem('user_groq_api_key', groqApiKey);
-                  alert('Groq API Key saved successfully!');
+                  /* toast: API key saved */
                 }}
                 className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow transition-colors"
               >
@@ -315,28 +341,29 @@ export default function AIJobHunter() {
 
         {/* TAB 1: SEARCH & DISCOVERY */}
         {tab === 'search' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             {/* Search Controls */}
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Keywords / Title</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Keywords / Job Title</label>
                   <input
-                    type="text"
+                    type="search"
+                    inputMode="search"
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
-                    placeholder="e.g. Senior Frontend Engineer, AI Researcher, Product Designer"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Senior Frontend Engineer, AI Researcher…"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl text-base md:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[48px]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location / Modality</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Location / Modality</label>
                   <input
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Remote, Worldwide, United States"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Remote, Worldwide, United States…"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl text-base md:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[48px]"
                   />
                 </div>
               </div>
@@ -491,7 +518,7 @@ export default function AIJobHunter() {
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(activeCoverLetter.text);
-                              alert('Cover letter copied to clipboard!');
+                              /* toast: copied */
                             }}
                             className="text-xs text-indigo-700 hover:text-indigo-900 font-semibold"
                           >
@@ -633,3 +660,4 @@ export default function AIJobHunter() {
     </Layout>
   );
 }
+

@@ -427,8 +427,16 @@ export default function Preferences() {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto py-8 px-4">
-        <h1 className="text-2xl font-bold mb-6">Website Feeds</h1>
+      {/* Mobile Header */}
+      <div className="md:hidden bg-gradient-to-r from-slate-800 to-slate-900 px-4 pt-5 pb-4 text-white mb-2">
+        <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Configuration</p>
+        <h1 className="text-xl font-extrabold">Sources &amp; Settings</h1>
+        <p className="text-slate-300 text-xs mt-0.5">RSS feeds · Keywords · Notifications · API keys</p>
+      </div>
+
+      <div className="max-w-4xl mx-auto py-4 md:py-8 px-4">
+        <h1 className="hidden md:block text-2xl font-bold mb-6">Website Feeds</h1>
+        <p className="md:hidden text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Feed Sources</p>
         
         {/* Success/Error Messages */}
         {error && (

@@ -157,19 +157,19 @@ export default function JobCard({ job, showFeed }) {
           </div>
         )}
         
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 pt-1">
           <div className="flex items-center text-xs text-gray-500">
-            <ClockIcon className="w-3 h-3 mr-1" />
+            <ClockIcon className="w-3.5 h-3.5 mr-1" />
             {formatJobDate(job.publishedDate || job.pubDate)}
           </div>
           <a
             href={job.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs sm:text-sm w-full sm:w-auto justify-center"
+            className="inline-flex items-center px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-95 transition-all font-semibold text-sm w-full sm:w-auto justify-center min-h-[44px] shadow-sm"
           >
-            <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-1" />
-            Apply
+            <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-1.5" />
+            Apply Now
           </a>
         </div>
       </div>

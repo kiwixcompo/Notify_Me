@@ -191,9 +191,38 @@ export default function LinkedInCrawler() {
 
   return (
     <Layout>
-      <div className="space-y-6 pb-20 md:pb-8">
-        {/* Header Banner */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+      <div className="space-y-0 md:space-y-6 pb-0 md:pb-8">
+
+        {/* ── Mobile Platform Header (hidden on desktop) ── */}
+        <div className="md:hidden bg-gradient-to-r from-slate-900 to-indigo-900 px-4 pt-5 pb-4 text-white">
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Social Web Crawlers</p>
+          <h1 className="text-xl font-extrabold">Opportunity Finder</h1>
+          <p className="text-slate-300 text-xs mt-0.5">LinkedIn · X (Twitter) · Facebook</p>
+
+          {/* Mobile Platform Pill Switcher */}
+          <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-hide">
+            {[
+              { id: 'linkedin', label: '🔗 LinkedIn' },
+              { id: 'x', label: '✖ X / Twitter' },
+              { id: 'facebook', label: '👥 Facebook' },
+            ].map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setActivePlatform(p.id)}
+                className={`shrink-0 px-4 py-2 rounded-2xl text-sm font-bold transition-all min-h-[40px] ${
+                  activePlatform === p.id
+                    ? 'bg-white text-slate-900 shadow-md'
+                    : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Desktop Header Banner (hidden on mobile) ── */}
+        <div className="hidden md:block bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
           <div className="absolute right-0 top-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
           <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -257,9 +286,10 @@ export default function LinkedInCrawler() {
             </button>
           </div>
         </div>
+        {/* End desktop header */}
 
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl flex items-center justify-between">
+          <div className="mx-4 md:mx-0 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl flex items-center justify-between">
             <span>⚠️ {error}</span>
             <button onClick={() => setError('')} className="text-red-500 hover:text-red-800 text-xs font-bold">Dismiss</button>
           </div>
@@ -269,7 +299,7 @@ export default function LinkedInCrawler() {
         {/* PLATFORM 1: LINKEDIN CRAWLER                             */}
         {/* ======================================================== */}
         {activePlatform === 'linkedin' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             {/* Engine Sub-tabs */}
             <div className="flex gap-2">
               <button
@@ -697,8 +727,8 @@ export default function LinkedInCrawler() {
     {/* PLATFORM 2: X (TWITTER) CRAWLER                          */}
     {/* ======================================================== */}
     {activePlatform === 'x' && (
-      <div className="space-y-6">
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-4">
+      <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-4">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -900,8 +930,8 @@ export default function LinkedInCrawler() {
     {/* PLATFORM 3: FACEBOOK GROUPS CRAWLER                      */}
     {/* ======================================================== */}
     {activePlatform === 'facebook' && (
-      <div className="space-y-6">
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-4">
+      <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-4">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -1069,3 +1099,4 @@ export default function LinkedInCrawler() {
 </Layout>
 );
 }
+

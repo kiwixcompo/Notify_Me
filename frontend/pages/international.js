@@ -153,9 +153,41 @@ export default function InternationalPortals() {
 
   return (
     <Layout>
-      <div className="space-y-6 pb-20 md:pb-8">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+      {/* Mobile Header */}
+      <div className="md:hidden bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 px-4 pt-5 pb-4 text-white">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
+            Official Portals
+          </span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/30 text-emerald-200 border border-emerald-400/30">
+            Shortage Track
+          </span>
+        </div>
+        <h1 className="text-xl font-extrabold">🌍 Global Talent Portals</h1>
+        <p className="text-slate-300 text-xs mt-0.5">Europe &amp; UK official vacancy feeds &amp; visa sponsorship</p>
+
+        {/* Mobile Segmented Control */}
+        <div className="segmented-control mt-4 bg-white/10">
+          {[
+            { id: 'portals', label: '🔍 Portals' },
+            { id: 'assist', label: '✉️ Dossier' },
+            { id: 'visaguide', label: '📘 Visa Guide' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={activeTab === t.id ? 'active' : ''}
+              style={activeTab === t.id ? { background: 'white', color: '#312e81' } : { color: '#c7d2fe' }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-0 md:space-y-6 pb-0 md:pb-8">
+        {/* Desktop Header — hidden on mobile */}
+        <div className="hidden md:block bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
           <div className="absolute right-0 top-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
           <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -243,7 +275,7 @@ export default function InternationalPortals() {
 
         {/* TAB 1: PORTALS & VACANCIES */}
         {activeTab === 'portals' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             {/* Search Filter Bar */}
             <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 shadow-sm">
               <form
@@ -431,7 +463,7 @@ export default function InternationalPortals() {
 
         {/* TAB 2: AI APPLICATION & VISA ASSIST DOSSIER */}
         {activeTab === 'assist' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
                 <div>
@@ -502,7 +534,7 @@ export default function InternationalPortals() {
 
         {/* TAB 3: NATIONAL SHORTAGE & VISA REFERENCE GUIDE */}
         {activeTab === 'visaguide' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900">
@@ -617,3 +649,4 @@ export default function InternationalPortals() {
     </Layout>
   );
 }
+

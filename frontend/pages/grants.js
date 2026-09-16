@@ -499,9 +499,39 @@ export default function GrantStudio() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Banner */}
-        <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 rounded-2xl p-6 text-white shadow-xl">
+      {/* Mobile Header */}
+      <div className="md:hidden bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 px-4 pt-5 pb-4 text-white">
+        <p className="text-purple-300 text-xs font-semibold uppercase tracking-wider mb-1">Academic &amp; Research</p>
+        <h1 className="text-xl font-extrabold">🔬 Grants &amp; Scholarships</h1>
+        <p className="text-purple-200 text-xs mt-0.5">PhD Finder · Supervisor Outreach · Proposal Studio</p>
+
+        {/* Mobile Segmented Tabs */}
+        <div className="segmented-control mt-4 bg-white/10">
+          {[
+            { id: 'crawler', label: '🌐 Sites' },
+            { id: 'finder', label: '🔎 Grants' },
+            { id: 'alignment', label: '🎯 Align' },
+            { id: 'coldemail', label: '✉️ Email' },
+            { id: 'writer', label: '✍️ Write' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => {
+                setActiveTab(t.id);
+                if (t.id === 'crawler' && crawledScholarships.length === 0) handleCrawlScholarshipSites();
+              }}
+              className={activeTab === t.id ? 'active' : ''}
+              style={activeTab === t.id ? { background: 'white', color: '#7c3aed' } : { color: '#c4b5fd' }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-0 md:space-y-6">
+        {/* Desktop Banner — hidden on mobile */}
+        <div className="hidden md:block bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <div className="inline-block px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-200 text-xs font-semibold mb-2 border border-purple-400/30">
@@ -651,7 +681,7 @@ export default function GrantStudio() {
 
         {/* TAB 0: REAL-TIME SCHOLARSHIP SITES CRAWLER */}
         {activeTab === 'crawler' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
@@ -1004,7 +1034,7 @@ export default function GrantStudio() {
 
         {/* TAB: CANDIDATE ALIGNMENT & ELIGIBILITY ENGINE */}
         {activeTab === 'alignment' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             {/* Input & Dual Ingestion Panel */}
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
@@ -1405,7 +1435,7 @@ export default function GrantStudio() {
 
         {/* TAB: DEDICATED SUPERVISOR COLD OUTREACH BUILDER */}
         {activeTab === 'coldemail' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -1940,7 +1970,7 @@ export default function GrantStudio() {
 
         {/* TAB 1: GRANT OPPORTUNITIES FINDER */}
         {activeTab === 'finder' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <h3 className="text-sm font-bold text-slate-800">🎯 Find Suitable Grant Opportunities</h3>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -2057,7 +2087,7 @@ export default function GrantStudio() {
 
         {/* TAB 2: PROPOSAL WRITER */}
         {activeTab === 'writer' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-base font-bold text-slate-900">✍️ Turn Your Research Idea Into A Fundable Proposal</h3>
@@ -2199,7 +2229,7 @@ export default function GrantStudio() {
 
         {/* TAB 3: BUDGET BUILDER & JUSTIFICATION */}
         {activeTab === 'budget' && (
-          <div className="space-y-6">
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-base font-bold text-slate-900">💰 Develop Realistic Project Budgets & Justifications</h3>
@@ -2366,3 +2396,5 @@ export default function GrantStudio() {
     </Layout>
   );
 }
+
+

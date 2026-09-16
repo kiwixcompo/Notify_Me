@@ -1,6 +1,115 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { ToastProvider } from './MobileToast';
+
+// ─── SVG Icons for Bottom Nav (crisp 24px, not emoji) ──────────────────────
+function IconHome({ filled }) {
+  return filled ? (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+    </svg>
+  ) : (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 12L12 3l9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" />
+    </svg>
+  );
+}
+function IconSearch({ filled }) {
+  return filled ? (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+    </svg>
+  ) : (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <circle cx="11" cy="11" r="7" strokeLinecap="round" />
+      <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+    </svg>
+  );
+}
+function IconGrants({ filled }) {
+  return filled ? (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 3a9 9 0 100 18A9 9 0 0012 3zm1 13h-2v-4h2v4zm0-6h-2V8h2v2z"/>
+    </svg>
+  ) : (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <circle cx="12" cy="12" r="9" strokeLinecap="round"/>
+      <path strokeLinecap="round" d="M12 8v4m0 4h.01"/>
+    </svg>
+  );
+}
+function IconGlobal({ filled }) {
+  return filled ? (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+    </svg>
+  ) : (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <circle cx="12" cy="12" r="9" strokeLinecap="round"/>
+      <path strokeLinecap="round" d="M3.6 9h16.8M3.6 15h16.8M12 3c-2 3-3 6-3 9s1 6 3 9M12 3c2 3 3 6 3 9s-1 6-3 9"/>
+    </svg>
+  );
+}
+function IconMore({ filled }) {
+  return filled ? (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+    </svg>
+  ) : (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <circle cx="12" cy="6" r="1.2" fill="currentColor"/>
+      <circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+      <circle cx="12" cy="18" r="1.2" fill="currentColor"/>
+    </svg>
+  );
+}
+
+// ─── Bottom nav tab config (5 items — within Apple/Android 3–5 recommendation)
+const BOTTOM_TABS = [
+  {
+    href: '/dashboard',
+    label: 'Home',
+    Icon: IconHome,
+    // "active" for dashboard only
+    isActive: (path) => path === '/dashboard',
+  },
+  {
+    href: '/jobs',
+    label: 'Search',
+    Icon: IconSearch,
+    // active for both jobs and linkedin (both are "search" tools)
+    isActive: (path) => path === '/jobs' || path === '/linkedin',
+  },
+  {
+    href: '/grants',
+    label: 'Grants',
+    Icon: IconGrants,
+    isActive: (path) => path === '/grants',
+  },
+  {
+    href: '/international',
+    label: 'Global',
+    Icon: IconGlobal,
+    isActive: (path) => path === '/international',
+  },
+  {
+    href: '/preferences',
+    label: 'More',
+    Icon: IconMore,
+    isActive: (path) => path === '/preferences',
+  },
+];
+
+// ─── Desktop nav links (kept the same as before)
+const navLinks = [
+  { href: '/dashboard', icon: '📊', label: 'Dashboard' },
+  { href: '/jobs', icon: '💼', label: 'AI Job Hunter' },
+  { href: '/linkedin', icon: '🌐', label: 'LinkedIn Crawler' },
+  { href: '/international', icon: '🌍', label: 'Global Portals' },
+  { href: '/grants', icon: '🔬', label: 'Grants Studio' },
+  { href: '/preferences', icon: '⚙️', label: 'Sources' },
+];
 
 export default function Layout({ children }) {
   const router = useRouter();
@@ -8,197 +117,149 @@ export default function Layout({ children }) {
 
   const isActive = (path) => router.pathname === path;
 
-  const navLinks = [
-    { href: '/dashboard', icon: '📊', label: 'Dashboard' },
-    { href: '/jobs', icon: '💼', label: 'AI Job Hunter' },
-    { href: '/linkedin', icon: '🌐', label: 'LinkedIn Crawler' },
-    { href: '/international', icon: '🇪🇺', label: 'Global Portals' },
-    { href: '/grants', icon: '🔬', label: 'Grants Studio' },
-    { href: '/preferences', icon: '⚙️', label: 'Sources' },
-  ];
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            {/* Logo */}
-            <div className="flex items-center space-x-2 shrink-0">
-              <span className="text-2xl">⚡</span>
-              <Link href="/dashboard" className="flex items-center gap-1.5 font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                <span>Notify_Me</span>
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200 uppercase tracking-wide">
-                  AI
-                </span>
-              </Link>
-            </div>
+    <ToastProvider>
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
 
-            {/* Desktop Navigation */}
-            <div className="hidden xl:flex items-center space-x-1">
-              {navLinks.map((item) => (
+        {/* ── Desktop / Tablet Top Navigation ──────────────────── */}
+        <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-16 items-center">
+
+              {/* Logo */}
+              <div className="flex items-center space-x-2 shrink-0">
+                <span className="text-2xl" aria-hidden="true">⚡</span>
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                    isActive(item.href)
-                      ? 'bg-blue-50 text-blue-700 font-semibold'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
+                  href="/dashboard"
+                  className="flex items-center gap-1.5 font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
                 >
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span>Notify_Me</span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200 uppercase tracking-wide">
+                    AI
+                  </span>
                 </Link>
-              ))}
-            </div>
+              </div>
 
-            {/* Tablet Navigation (compact) */}
-            <div className="hidden md:flex xl:hidden items-center space-x-1">
-              {navLinks.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  title={item.label}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap ${
-                    isActive(item.href)
-                      ? 'bg-blue-50 text-blue-700 font-bold'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
+              {/* Desktop Navigation (xl+) */}
+              <div className="hidden xl:flex items-center space-x-1">
+                {navLinks.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap min-h-[44px] ${
+                      isActive(item.href)
+                        ? 'bg-blue-50 text-blue-700 font-semibold'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span aria-hidden="true">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Tablet Navigation (md–xl) */}
+              <div className="hidden md:flex xl:hidden items-center space-x-1">
+                {navLinks.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap min-h-[44px] ${
+                      isActive(item.href)
+                        ? 'bg-blue-50 text-blue-700 font-bold'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span aria-hidden="true">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Right side actions */}
+              <div className="flex items-center space-x-2 shrink-0">
+                {/* Clear data — desktop/tablet only */}
+                <button
+                  onClick={() => {
+                    if (window.confirm('Clear all locally saved searches, resume data, and preferences?')) {
+                      localStorage.clear();
+                      window.location.reload();
+                    }
+                  }}
+                  className="hidden sm:flex px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition-colors items-center gap-1 min-h-[44px]"
+                  title="Clear all saved data"
                 >
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
-                </Link>
-              ))}
-            </div>
+                  <span aria-hidden="true">🗑️</span>
+                  <span>Clear</span>
+                </button>
 
-            {/* Desktop Action + Mobile Menu Toggle */}
-            <div className="flex items-center space-x-2 shrink-0">
-              <button
-                onClick={() => {
-                  if (window.confirm('Clear all locally saved searches, resume data, and preferences?')) {
-                    localStorage.clear();
-                    window.location.reload();
-                  }
-                }}
-                className="hidden sm:flex px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition-colors items-center gap-1"
-                title="Clear all saved data"
-              >
-                <span>🗑️</span>
-                <span>Clear</span>
-              </button>
-
-              {/* Hamburger Button for Mobile */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200"
-                aria-label="Toggle navigation menu"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {mobileMenuOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  )}
-                </svg>
-              </button>
+                {/* Mobile: compact top-right notification/profile area (hamburger removed) */}
+                <div className="md:hidden flex items-center gap-2">
+                  <Link
+                    href="/preferences"
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white text-sm font-bold"
+                    aria-label="Settings and profile"
+                  >
+                    ⚙
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </nav>
 
-        {/* Mobile Dropdown Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-2 pb-4 space-y-1 shadow-lg">
-            {navLinks.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                  isActive(item.href)
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-              </Link>
-            ))}
-            <div className="pt-2 border-t border-slate-100">
-              <button
-                onClick={() => {
-                  if (window.confirm('Clear all locally saved searches, resume data, and preferences?')) {
-                    localStorage.clear();
-                    window.location.reload();
-                  }
-                }}
-                className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100"
-              >
-                🗑️ Clear All Saved Data
-              </button>
-            </div>
+        {/* ── Main Content Area ─────────────────────────────────── */}
+        {/* On mobile: pb-bottom-nav gives room for the fixed bottom nav */}
+        <main className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 md:py-6 w-full flex-1 pb-bottom-nav md:pb-0">
+          {children}
+        </main>
+
+        {/* ── Mobile Bottom Navigation (md:hidden) ─────────────── */}
+        {/*
+          5 tabs: Home | Search | Grants | Global | More
+          Each tab: SVG icon (24px) + label + active indicator pill
+          Touch targets: min 48px height via py + the tab's flex container
+          Safe area: pb-safe ensures content isn't hidden behind home indicator
+        */}
+        <nav
+          className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-1px_0_0_rgba(0,0,0,0.06),0_-4px_12px_rgba(0,0,0,0.04)]"
+          aria-label="Main navigation"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          <div className="flex justify-around items-end px-1 pt-1 pb-1">
+            {BOTTOM_TABS.map((tab) => {
+              const active = tab.isActive(router.pathname);
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  aria-label={tab.label}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex flex-col items-center gap-0.5 py-2 px-2 rounded-2xl transition-all duration-150 active:scale-90 min-w-[56px] min-h-[52px] justify-center ${
+                    active
+                      ? 'text-blue-600'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  {/* Active indicator pill behind icon */}
+                  <div className={`relative flex items-center justify-center ${active ? 'after:absolute after:inset-[-6px] after:bg-blue-50 after:rounded-2xl after:-z-10' : ''}`}>
+                    <tab.Icon filled={active} />
+                  </div>
+                  <span
+                    className={`text-[10px] font-semibold leading-none ${
+                      active ? 'text-blue-600' : 'text-slate-400'
+                    }`}
+                  >
+                    {tab.label}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
-        )}
-      </nav>
+        </nav>
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">{children}</main>
-
-      {/* Mobile Bottom Navigation Bar (Persistent Native Style) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 flex justify-around items-center py-2 px-1 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-        <Link
-          href="/dashboard"
-          className={`flex flex-col items-center text-xs py-1 px-2 rounded-lg ${
-            isActive('/dashboard') ? 'text-blue-600 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <span className="text-base">📊</span>
-          <span className="text-[10px] mt-0.5">Dashboard</span>
-        </Link>
-        <Link
-          href="/jobs"
-          className={`flex flex-col items-center text-xs py-1 px-2 rounded-lg ${
-            isActive('/jobs') ? 'text-blue-600 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <span className="text-base">💼</span>
-          <span className="text-[10px] mt-0.5">Job Hunter</span>
-        </Link>
-        <Link
-          href="/linkedin"
-          className={`flex flex-col items-center text-xs py-1 px-1.5 rounded-lg ${
-            isActive('/linkedin') ? 'text-blue-600 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <span className="text-base">🌐</span>
-          <span className="text-[10px] mt-0.5">LinkedIn</span>
-        </Link>
-        <Link
-          href="/international"
-          className={`flex flex-col items-center text-xs py-1 px-1.5 rounded-lg ${
-            isActive('/international') ? 'text-indigo-600 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <span className="text-base">🇪🇺</span>
-          <span className="text-[10px] mt-0.5">Europe</span>
-        </Link>
-        <Link
-          href="/grants"
-          className={`flex flex-col items-center text-xs py-1 px-1.5 rounded-lg ${
-            isActive('/grants') ? 'text-purple-600 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <span className="text-base">🔬</span>
-          <span className="text-[10px] mt-0.5">Grants</span>
-        </Link>
-        <Link
-          href="/preferences"
-          className={`flex flex-col items-center text-xs py-1 px-1.5 rounded-lg ${
-            isActive('/preferences') ? 'text-blue-600 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <span className="text-base">⚙️</span>
-          <span className="text-[10px] mt-0.5">Sources</span>
-        </Link>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

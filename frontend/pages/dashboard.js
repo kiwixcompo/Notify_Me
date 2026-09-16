@@ -274,10 +274,227 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto py-4 px-3 sm:py-8 sm:px-6 space-y-8">
+      {/* ════════════════════════════════════════════════
+          MOBILE VIEW  (hidden on md+)
+          Single-column, task-focused, thumb-friendly
+      ════════════════════════════════════════════════ */}
+      <div className="md:hidden min-h-screen bg-slate-50">
+
+        {/* Mobile Hero — compact greeting card */}
+        <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 px-5 pt-5 pb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-blue-200 text-xs font-semibold uppercase tracking-wider">Notify Me AI</p>
+              <h1 className="text-2xl font-extrabold text-white mt-0.5">
+                Hey, {userProfile.name.split(' ')[0]} 👋
+              </h1>
+            </div>
+            {/* Notification bell */}
+            <button
+              onClick={handleEnableNotifications}
+              className="relative w-11 h-11 bg-white/20 rounded-full flex items-center justify-center"
+              aria-label="Notification settings"
+            >
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
+              {notifPermission === 'default' && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full border-2 border-blue-600" />
+              )}
+              {notifPermission === 'granted' && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-blue-600" />
+              )}
+            </button>
+          </div>
+
+          {/* Stat pills */}
+          <div className="flex gap-2">
+            {[
+              { value: fetchingFeeds ? '…' : feedStats.total, label: 'Items', icon: '📥' },
+              { value: feedStats.feeds, label: 'Feeds', icon: '📡' },
+              { value: websiteLinks.length, label: 'Sources', icon: '🔗' },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="flex-1 bg-white/15 backdrop-blur-sm rounded-2xl px-3 py-2.5 text-center border border-white/20"
+              >
+                <div className="text-lg font-extrabold text-white">{stat.value}</div>
+                <div className="text-[10px] text-blue-200 font-semibold mt-0.5">{stat.icon} {stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress bar */}
+          {fetchingFeeds && (
+            <div className="mt-4">
+              <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white/60 transition-all duration-200 rounded-full"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-xs text-blue-200 mt-1">Fetching feeds… {progress}%</p>
+            </div>
+          )}
+        </div>
+
+        {/* Quick Action horizontal scroll strip */}
+        <div className="px-4 py-4">
+          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Actions</h2>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide scroll-smooth-ios">
+            {[
+              { href: '/grants', label: 'Find PhDs', icon: '🔬', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+              { href: '/jobs', label: 'Job Search', icon: '💼', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+              { href: '/grants', label: 'Cold Email', icon: '✉️', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+              { href: '/international', label: 'Global Jobs', icon: '🌍', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+              { href: '/linkedin', label: 'LinkedIn', icon: '🔍', color: 'bg-sky-100 text-sky-800 border-sky-200' },
+              { href: '/jobs', label: 'Upload CV', icon: '📄', color: 'bg-rose-100 text-rose-800 border-rose-200' },
+            ].map((action) => (
+              <Link
+                key={action.label}
+                href={action.href}
+                className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold border tap-highlight ${action.color} min-h-[44px]`}
+              >
+                <span aria-hidden="true">{action.icon}</span>
+                {action.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Live Feed — compact list */}
+        <div className="px-4 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Latest from Your Feeds</h2>
+            <button
+              onClick={fetchFeedData}
+              disabled={fetchingFeeds}
+              className="text-xs font-semibold text-blue-600 disabled:opacity-50"
+              aria-label="Refresh feeds"
+            >
+              {fetchingFeeds ? 'Refreshing…' : '↻ Refresh'}
+            </button>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            {fetchingFeeds ? (
+              // Skeleton loading
+              <div role="status" aria-label="Loading feed items">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="flex items-start gap-3 p-4 border-b border-slate-50">
+                    <div className="skeleton w-8 h-8 rounded-lg shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="skeleton h-3.5 w-5/6 rounded" />
+                      <div className="skeleton h-3 w-1/3 rounded" />
+                    </div>
+                  </div>
+                ))}
+                <span className="sr-only">Loading feed items...</span>
+              </div>
+            ) : recentItems.length > 0 ? (
+              recentItems.map((item, i) => (
+                <a
+                  key={i}
+                  href={item.link || item.url || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-start gap-3 p-4 border-b border-slate-50 last:border-0 active:bg-slate-50 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm shrink-0 font-bold text-blue-600">
+                    {(item.title || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 line-clamp-2 leading-snug">{item.title}</p>
+                    <p className="text-xs text-slate-400 mt-0.5 truncate">{item.feedName} · {formatAgo(item.pubDate)}</p>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-300 shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              ))
+            ) : (
+              <div className="py-12 text-center px-4">
+                <div className="text-3xl mb-3">📭</div>
+                <p className="text-sm font-semibold text-slate-700">No feed items yet</p>
+                <p className="text-xs text-slate-400 mt-1 mb-4">Add RSS feeds in Sources to start tracking opportunities</p>
+                <Link
+                  href="/preferences"
+                  className="inline-block px-5 py-3 bg-blue-600 text-white text-sm font-bold rounded-2xl min-h-[48px] flex items-center"
+                >
+                  ＋ Add Sources
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Module shortcuts — 2-column grid */}
+        <div className="px-4 pb-4">
+          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">All Tools</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {MODULES.map((mod) => (
+              <Link
+                key={mod.label}
+                href={mod.href}
+                className="group bg-white rounded-2xl p-4 border border-slate-100 shadow-sm active:scale-95 transition-all tap-highlight flex flex-col gap-2 min-h-[100px]"
+              >
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${mod.color} flex items-center justify-center text-lg shadow-sm shrink-0`}>
+                  {mod.icon}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 leading-tight line-clamp-1">{mod.label}</p>
+                  <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md ${mod.badgeColor}`}>{mod.badge}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Add source widget */}
+        <div className="px-4 pb-6">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-slate-800">📡 Sources <span className="text-slate-400 font-normal text-xs">({websiteLinks.length})</span></h3>
+              <Link href="/preferences" className="text-xs font-semibold text-blue-600">Manage →</Link>
+            </div>
+            <form onSubmit={handleAddLink} className="flex gap-2">
+              <input
+                type="url"
+                value={newLinkUrl}
+                onChange={e => setNewLinkUrl(e.target.value)}
+                placeholder="Paste a job site URL…"
+                className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[48px]"
+                inputMode="url"
+                autoComplete="url"
+                required
+              />
+              <button
+                type="submit"
+                disabled={addingLink || !newLinkUrl.trim()}
+                className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition disabled:opacity-50 min-h-[48px]"
+              >
+                {addingLink ? '…' : '+'}
+              </button>
+            </form>
+            {addLinkMsg && (
+              <p className={`text-xs font-medium mt-2 ${addLinkMsg.startsWith('✅') ? 'text-green-700' : 'text-red-600'}`}>
+                {addLinkMsg}
+              </p>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* ════════════════════════════════════════════════
+          DESKTOP VIEW  (hidden on mobile, shown md+)
+          Original layout preserved exactly
+      ════════════════════════════════════════════════ */}
+      <div className="hidden md:block max-w-7xl mx-auto py-4 px-3 sm:py-8 sm:px-6 space-y-8">
 
         {/* ---- HERO HEADER ---- */}
         <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-900 rounded-2xl p-6 sm:p-8 text-white shadow-2xl">
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
