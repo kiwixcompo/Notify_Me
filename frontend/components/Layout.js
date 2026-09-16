@@ -105,6 +105,7 @@ const BOTTOM_TABS = [
 const navLinks = [
   { href: '/dashboard', icon: '📊', label: 'Dashboard' },
   { href: '/jobs', icon: '💼', label: 'AI Job Hunter' },
+  { href: '/fiverr', icon: '🎯', label: 'Fiverr Studio' },
   { href: '/linkedin', icon: '🌐', label: 'LinkedIn Crawler' },
   { href: '/international', icon: '🌍', label: 'Global Portals' },
   { href: '/grants', icon: '🔬', label: 'Grants Studio' },

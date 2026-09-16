@@ -48,6 +48,7 @@ app.use('/api/job-hunter', require('./routes/aiJobHunter'));
 app.use('/api/portals', require('./routes/portals'));
 app.use('/api/feeds/website-links', require('./routes/websiteLinks'));
 app.use('/api/push', require('./routes/push'));
+app.use('/api/fiverr', require('./routes/fiverr'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

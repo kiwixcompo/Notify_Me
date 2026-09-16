@@ -9,7 +9,88 @@ const crypto = require('crypto');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 
+const { fetchFormalJobs } = require('../services/linkedinCrawler');
+
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Helper function to fetch real-time jobs from live open feeds
+async function fetchRealtimeJobs({ keywords = 'Software Engineer', location = 'Remote', maxResults = 25 }) {
+  const isRemote = !location || location.toLowerCase().includes('remote') || location.toLowerCase().includes('worldwide');
+  const results = [];
+  const seenUrls = new Set();
+
+  // 1. Fetch live vacancies from LinkedIn Jobs Guest API (real-time, no account needed)
+  try {
+    const linkedinJobs = await fetchFormalJobs({
+      keywords,
+      location: location || 'Worldwide',
+      isRemote,
+      offset: 0
+    });
+
+    if (Array.isArray(linkedinJobs)) {
+      for (const j of linkedinJobs) {
+        if (j.url && !seenUrls.has(j.url)) {
+          seenUrls.add(j.url);
+          results.push({
+            id: `li_${j.jobId || crypto.createHash('md5').update(j.url).digest('hex')}`,
+            title: j.title,
+            company: j.company,
+            location: j.location,
+            url: j.url,
+            source: 'LinkedIn Jobs Live',
+            description: `${j.title} at ${j.company} in ${j.location}. Posted: ${j.postedTime || 'Recently'}.`,
+            is_remote: j.isRemote
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[RealtimeJobs] LinkedIn Guest API failed, continuing with secondary sources:', err.message);
+  }
+
+  // 2. Augment with RemoteOK Live API if remote or tech query
+  try {
+    const queryLower = keywords.toLowerCase();
+    const remoteOkRes = await axios.get('https://remoteok.com/api', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      timeout: 8000
+    });
+
+    if (Array.isArray(remoteOkRes.data)) {
+      const filtered = remoteOkRes.data
+        .filter(item => item && item.position && item.company)
+        .filter(item => {
+          if (!keywords || keywords === 'Software Engineer') return true;
+          const pos = (item.position || '').toLowerCase();
+          const tags = (item.tags || []).join(' ').toLowerCase();
+          return pos.includes(queryLower) || tags.includes(queryLower);
+        })
+        .slice(0, 15);
+
+      for (const item of filtered) {
+        const itemUrl = item.url ? (item.url.startsWith('http') ? item.url : `https://remoteok.com${item.url}`) : `https://remoteok.com/remote-jobs/${item.id}`;
+        if (!seenUrls.has(itemUrl)) {
+          seenUrls.add(itemUrl);
+          results.push({
+            id: `rok_${item.id}`,
+            title: item.position,
+            company: item.company,
+            location: item.location || 'Remote',
+            url: itemUrl,
+            source: 'RemoteOK Realtime',
+            description: (item.description || `${item.position} at ${item.company}`).replace(/<[^>]*>?/gm, '').slice(0, 400),
+            is_remote: true
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[RealtimeJobs] RemoteOK fetch error:', err.message);
+  }
+
+  return results.slice(0, maxResults);
+}
 
 // Helper function to call Groq API
 async function callGroqAPI(prompt, apiKey, format = 'json_object', temperature = 0.2) {
@@ -40,19 +121,30 @@ router.post('/search', optionalAuth, async (req, res) => {
     const { keywords, location, max_results, custom_urls } = req.body;
     let jobs = [];
 
-    // Fallback/Synthetic Search if no custom URLs
+    // Real-time Search if no custom URLs provided
     if (!custom_urls || custom_urls.length === 0) {
-      for (let i = 0; i < (max_results || 10); i++) {
-        jobs.push({
-          id: `ai_job_${Date.now()}_${i}`,
-          title: `${keywords || 'Software Engineer'} (Role ${i + 1})`,
-          company: 'AI Discovered Tech',
-          location: location || 'Remote',
-          url: 'https://linkedin.com/jobs/search?q=' + encodeURIComponent(keywords || 'Software Engineer'),
-          source: 'AI Web Crawler',
-          description: `Looking for a driven ${keywords || 'engineer'} in ${location || 'Remote'}. Competitive salary.`
-        });
+      jobs = await fetchRealtimeJobs({
+        keywords: keywords || 'Software Engineer',
+        location: location || 'Remote',
+        maxResults: max_results || 25
+      });
+
+      // If live scraping returned zero due to strict filters or rate limits, provide helpful contextual items
+      if (!jobs || jobs.length === 0) {
+        jobs = [
+          {
+            id: `li_search_${Date.now()}`,
+            title: `${keywords || 'Software Engineer'}`,
+            company: 'View Live Listings',
+            location: location || 'Remote',
+            url: `https://www.linkedin.com/jobs/search?keywords=${encodeURIComponent(keywords || 'Software Engineer')}&location=${encodeURIComponent(location || 'Worldwide')}`,
+            source: 'LinkedIn Portal',
+            description: `Click to view active real-time job openings for ${keywords || 'Software Engineer'} on LinkedIn.`,
+            is_remote: true
+          }
+        ];
       }
+
       return res.json({ status: 'success', total: jobs.length, jobs });
     }
 
