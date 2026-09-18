@@ -33,27 +33,42 @@ export default function AuthForm({ mode }) {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       
+      let token = null;
+      let userName = name.trim();
+
       if (mode === 'register') {
-        // First register the user
-        await axios.post(`${apiUrl}/api/auth/register`, { 
+        const regRes = await axios.post(`${apiUrl}/api/auth/register`, { 
           email: email.trim(), 
           password: password,
           name: name.trim(),
           phone: phone.trim() || ''
         }, { timeout: 15000 });
+
+        if (regRes.data?.token) {
+          token = regRes.data.token;
+          if (regRes.data.user?.name) userName = regRes.data.user.name;
+        }
       }
       
-      // Then log them in
-      const res = await axios.post(`${apiUrl}/api/auth/login`, { 
-        email: email.trim(), 
-        password: password 
-      }, { timeout: 15000 });
+      // If mode is login or register didn't return a token, perform login
+      if (!token) {
+        const loginRes = await axios.post(`${apiUrl}/api/auth/login`, { 
+          email: email.trim(), 
+          password: password 
+        }, { timeout: 15000 });
+        
+        if (loginRes.data?.token) {
+          token = loginRes.data.token;
+          if (loginRes.data.user?.name) userName = loginRes.data.user.name;
+        }
+      }
       
-      if (res.data && res.data.token) {
-        localStorage.setItem('token', res.data.token);
+      if (token) {
+        localStorage.setItem('token', token);
+        if (userName) localStorage.setItem('user_name', userName);
         router.replace('/dashboard');
       } else {
-        throw new Error('No token received');
+        throw new Error('No authentication token received');
       }
     } catch (err) {
       console.error('Auth error:', err);
@@ -170,7 +185,7 @@ export default function AuthForm({ mode }) {
           )}
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg shadow hover:bg-blue-700 hover:scale-105 active:scale-95 transition font-semibold text-lg mb-2 z-10 focus:outline-none focus:ring-4 focus:ring-blue-300"
+            className="w-full flex items-center justify-center text-center bg-blue-600 text-white py-3 rounded-lg shadow hover:bg-blue-700 hover:scale-105 active:scale-95 transition font-semibold text-lg mb-2 z-10 focus:outline-none focus:ring-4 focus:ring-blue-300"
             disabled={loading}
           >
             {loading ? (mode === 'login' ? 'Logging in...' : 'Registering...') : (mode === 'login' ? 'Login' : 'Register')}

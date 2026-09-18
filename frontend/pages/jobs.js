@@ -17,11 +17,14 @@ export default function AIJobHunter() {
   const [parsedResume, setParsedResume] = useState(null);
   const [uploadingResume, setUploadingResume] = useState(false);
   const [activeCoverLetter, setActiveCoverLetter] = useState({ id: null, text: '', loading: false });
+  const [timeFilter, setTimeFilter] = useState('any'); // '24h', '7d', '30d', 'any'
   const [pipeline, setPipeline] = useState([]);
   const [scoringMap, setScoringMap] = useState({});
   const [groqApiKey, setGroqApiKey] = useState('');
-  const [showKeyInput, setShowKeyInput] = useState(false);
-  const [testKeyStatus, setTestKeyStatus] = useState(null); // { loading, valid, message }
+  const [reminderEmail, setReminderEmail] = useState('');
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [settingReminder, setSettingReminder] = useState(false);
+  const [reminderStatus, setReminderStatus] = useState(null); // { success: bool, message: str }
 
   const handleTestKey = async () => {
     setTestKeyStatus({ loading: true });
@@ -70,14 +73,16 @@ export default function AIJobHunter() {
     setCustomUrls(customUrls.filter(u => u !== urlToRemove));
   };
 
-  const handleSearch = async () => {
+  const handleSearch = async (customFilter) => {
     setLoading(true);
     setError('');
+    const activeFilter = customFilter !== undefined ? customFilter : timeFilter;
     try {
       const res = await axios.post(`${API_BASE}/api/job-hunter/search`, {
         keywords,
         location,
-        max_results: 20,
+        timeFilter: activeFilter,
+        max_results: 30,
         custom_urls: customUrls
       }, { headers: getHeaders() });
 
@@ -91,6 +96,37 @@ export default function AIJobHunter() {
       setError(err.response?.data?.error || 'Failed to search jobs. Ensure backend is running.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSetReminder = async (e) => {
+    e?.preventDefault();
+    if (!reminderEmail && !localStorage.getItem('token')) {
+      alert('Please enter your email to receive job reminders.');
+      return;
+    }
+    setSettingReminder(true);
+    setReminderStatus(null);
+    try {
+      const res = await axios.post(`${API_BASE}/api/job-hunter/alert-reminder`, {
+        email: reminderEmail,
+        keywords: keywords || 'Software Engineer',
+        location: location || 'Remote',
+        frequency: 'instant'
+      }, { headers: getHeaders() });
+
+      setReminderStatus({ success: true, message: res.data.message });
+      setTimeout(() => {
+        setShowReminderModal(false);
+        setReminderStatus(null);
+      }, 3500);
+    } catch (err) {
+      setReminderStatus({
+        success: false,
+        message: err.response?.data?.error || 'Failed to set job reminder.'
+      });
+    } finally {
+      setSettingReminder(false);
     }
   };
 
@@ -267,75 +303,10 @@ export default function AIJobHunter() {
               >
                 📊 Pipeline ({pipeline.length})
               </button>
-              <button
-                onClick={() => setShowKeyInput(!showKeyInput)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
-                  showKeyInput ? 'bg-amber-500 text-white shadow' : 'text-amber-300 hover:text-white bg-amber-500/20'
-                }`}
-                title="Configure Groq API Key"
-              >
-                ⚙️ Groq API Key
-              </button>
             </div>
           </div>
         </div>
         {/* End desktop header */}
-
-        {/* Groq Key Configuration Banner */}
-        {showKeyInput && (
-          <div className="mx-4 md:mx-0 p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                🔑 Groq Cloud API Key (Free High-Speed LLM Inference)
-              </span>
-              <button onClick={() => setShowKeyInput(false)} className="text-xs text-amber-700 font-bold hover:text-amber-900">
-                ✕ Close
-              </button>
-            </div>
-            <p className="text-xs text-amber-800">
-              Get your 100% free key at <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="underline font-semibold text-amber-900">console.groq.com/keys</a>. It is saved in your browser and used to power cover letter generation and semantic match scoring.
-            </p>
-            <div className="flex gap-2 pt-1">
-              <input
-                type="password"
-                value={groqApiKey}
-                onChange={(e) => {
-                  setGroqApiKey(e.target.value);
-                  localStorage.setItem('user_groq_api_key', e.target.value);
-                }}
-                placeholder="gsk_..."
-                className="flex-1 px-3 py-1.5 border border-amber-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white"
-              />
-              <button
-                onClick={() => {
-                  localStorage.setItem('user_groq_api_key', groqApiKey);
-                  /* toast: API key saved */
-                }}
-                className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow transition-colors"
-              >
-                Save Key
-              </button>
-              <button
-                onClick={handleTestKey}
-                disabled={testKeyStatus?.loading}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow transition-colors flex items-center gap-1.5"
-              >
-                {testKeyStatus?.loading ? '⚡ Testing...' : '🧪 Test Connection'}
-              </button>
-            </div>
-
-            {testKeyStatus && (
-              <div className={`p-2.5 rounded-lg text-xs font-medium border flex items-center gap-2 ${
-                testKeyStatus.valid 
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                  : 'bg-red-50 text-red-800 border-red-200'
-              }`}>
-                <span>{testKeyStatus.valid ? '✅' : '❌'}</span>
-                <span>{testKeyStatus.message}</span>
-              </div>
-            )}
-          </div>
-        )}
 
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex justify-between items-center">
@@ -406,27 +377,112 @@ export default function AIJobHunter() {
                 )}
               </div>
 
-              <div className="flex justify-end pt-2">
-                <button
-                  onClick={handleSearch}
-                  disabled={loading}
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow transition-all flex items-center gap-2"
-                >
-                  {loading ? '⚡ Discovering Live Opportunities...' : '🚀 Launch Search & ATS Dorking'}
-                </button>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                {/* Timeframe Filter */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-600 whitespace-nowrap">⏳ Timeframe:</label>
+                  <select
+                    value={timeFilter}
+                    onChange={(e) => {
+                      const newFilter = e.target.value;
+                      setTimeFilter(newFilter);
+                      handleSearch(newFilter);
+                    }}
+                    className="text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <option value="any">All Time</option>
+                    <option value="24h">Past 24 Hours</option>
+                    <option value="7d">Past Week</option>
+                    <option value="30d">Past Month</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowReminderModal(true)}
+                    type="button"
+                    className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                    title="Set email reminder for this search"
+                  >
+                    🔔 Remind Me of Matching Jobs
+                  </button>
+                  <button
+                    onClick={() => handleSearch()}
+                    disabled={loading}
+                    className="flex-1 sm:flex-initial px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow transition-all flex items-center justify-center gap-2"
+                  >
+                    {loading ? '⚡ Searching Global Feeds...' : '🚀 Launch Search'}
+                  </button>
+                </div>
               </div>
             </div>
 
+            {/* Reminder Subscription Modal */}
+            {showReminderModal && (
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl shadow-md space-y-3">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🔔</span>
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      Get Instant Email Alerts for &ldquo;{keywords || 'Software Engineer'}&rdquo;
+                    </h4>
+                  </div>
+                  <button
+                    onClick={() => setShowReminderModal(false)}
+                    className="text-slate-400 hover:text-slate-700 font-bold text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Receive an immediate email with current direct opportunities, and automated alerts whenever new matching roles are indexed from global feeds.
+                </p>
+                <form onSubmit={handleSetReminder} className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <input
+                    type="email"
+                    required
+                    value={reminderEmail}
+                    onChange={(e) => setReminderEmail(e.target.value)}
+                    placeholder="Enter your email address..."
+                    className="flex-1 px-3 py-2 border border-amber-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white min-h-[42px]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={settingReminder}
+                    className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition shadow min-h-[42px] flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    {settingReminder ? 'Subscribing...' : 'Activate Reminder'}
+                  </button>
+                </form>
+                {reminderStatus && (
+                  <p className={`text-xs font-semibold ${reminderStatus.success ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {reminderStatus.success ? '✅ ' : '⚠️ '}{reminderStatus.message}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Search Results */}
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-slate-700">Found {jobs.length} Verified Opportunities</h3>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-700">
+                  Found {jobs.length} Verified Opportunities
+                  {timeFilter !== 'any' && <span className="ml-1 text-xs font-normal text-slate-500">({timeFilter})</span>}
+                </h3>
+                {jobs.length > 0 && (
+                  <button
+                    onClick={() => setShowReminderModal(true)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"
+                  >
+                    🔔 Alert me for this search
+                  </button>
+                )}
               </div>
 
               {jobs.length === 0 && !loading && (
                 <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-500">
                   <span className="text-3xl block mb-2">🔎</span>
-                  No jobs loaded yet. Click "Launch Search & ATS Dorking" above to find opportunities.
+                  No jobs loaded yet. Click &ldquo;Launch Search&rdquo; above to find opportunities.
                 </div>
               )}
 

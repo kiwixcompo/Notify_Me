@@ -117,23 +117,10 @@ export default function FiverrStudio() {
               </div>
             </div>
 
-            {/* Optional Groq Key */}
-            <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <div className="w-full sm:w-2/3">
-                <label className="block text-[11px] font-medium text-slate-500 mb-0.5">
-                  Groq API Key (Optional override - unlocks 70B generative rewrites &amp; prompt synthesis)
-                </label>
-                <input
-                  type="password"
-                  value={groqApiKey}
-                  onChange={(e) => setGroqApiKey(e.target.value)}
-                  placeholder="gsk_..."
-                  className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-              <span className="text-[11px] text-slate-400">
-                Fiverr Algorithm v2026 Engine
-              </span>
+            {/* Powered by AI Engine */}
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+              <span>⚡ Powered by Universal High-Speed AI Inference</span>
+              <span>Fiverr Algorithm v2026 Engine</span>
             </div>
           </form>
 

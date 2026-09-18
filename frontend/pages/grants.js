@@ -603,74 +603,9 @@ export default function GrantStudio() {
               >
                 📁 Saved ({savedProposals.length})
               </button>
-              <button
-                onClick={() => setShowKeyInput(!showKeyInput)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
-                  showKeyInput ? 'bg-amber-500 text-white shadow' : 'text-amber-300 hover:text-white bg-amber-500/20'
-                }`}
-                title="Configure Groq API Key"
-              >
-                ⚙️ Groq API Key
-              </button>
             </div>
           </div>
         </div>
-
-        {/* Groq Key Configuration Banner */}
-        {showKeyInput && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                🔑 Groq Cloud API Key (Free High-Speed LLM Inference)
-              </span>
-              <button onClick={() => setShowKeyInput(false)} className="text-xs text-amber-700 font-bold hover:text-amber-900">
-                ✕ Close
-              </button>
-            </div>
-            <p className="text-xs text-amber-800">
-              Get your 100% free key at <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="underline font-semibold text-amber-900">console.groq.com/keys</a>. It is saved across the app and powers proposal generation and budget justifications.
-            </p>
-            <div className="flex gap-2 pt-1">
-              <input
-                type="password"
-                value={groqApiKey}
-                onChange={(e) => {
-                  setGroqApiKey(e.target.value);
-                  localStorage.setItem('user_groq_api_key', e.target.value);
-                }}
-                placeholder="gsk_..."
-                className="flex-1 px-3 py-1.5 border border-amber-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white"
-              />
-              <button
-                onClick={() => {
-                  localStorage.setItem('user_groq_api_key', groqApiKey);
-                  alert('Groq API Key saved successfully!');
-                }}
-                className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow transition-colors"
-              >
-                Save Key
-              </button>
-              <button
-                onClick={handleTestKey}
-                disabled={testKeyStatus?.loading}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow transition-colors flex items-center gap-1.5"
-              >
-                {testKeyStatus?.loading ? '⚡ Testing...' : '🧪 Test Connection'}
-              </button>
-            </div>
-
-            {testKeyStatus && (
-              <div className={`p-2.5 rounded-lg text-xs font-medium border flex items-center gap-2 ${
-                testKeyStatus.valid 
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                  : 'bg-red-50 text-red-800 border-red-200'
-              }`}>
-                <span>{testKeyStatus.valid ? '✅' : '❌'}</span>
-                <span>{testKeyStatus.message}</span>
-              </div>
-            )}
-          </div>
-        )}
 
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex justify-between items-center">

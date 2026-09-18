@@ -61,9 +61,10 @@ router.post('/crawler/save', requireAuth, async (req, res) => {
 router.post('/analyze-fit', requireAuth, async (req, res) => {
   try {
     const { scholarship_text, candidate_profile, groq_api_key } = req.body;
+    const effectiveApiKey = groq_api_key || process.env.GROQ_API_KEY;
     
-    if (!groq_api_key) {
-      return res.status(400).json({ error: 'Groq API Key is required' });
+    if (!effectiveApiKey) {
+      return res.status(400).json({ error: 'Groq API Key is not configured on the server.' });
     }
 
     const prompt = `
@@ -107,7 +108,7 @@ RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
       response_format: { type: 'json_object' }
     }, {
       headers: {
-        'Authorization': `Bearer ${groq_api_key}`,
+        'Authorization': `Bearer ${effectiveApiKey}`,
         'Content-Type': 'application/json'
       },
       timeout: 60000
@@ -126,9 +127,10 @@ RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
 router.post('/generate-cold-email', requireAuth, async (req, res) => {
   try {
     const { project_title, university_or_lab, pi_name, project_summary, candidate_name, candidate_background, groq_api_key } = req.body;
+    const effectiveApiKey = groq_api_key || process.env.GROQ_API_KEY;
 
-    if (!groq_api_key) {
-      return res.status(400).json({ error: 'Groq API Key is required' });
+    if (!effectiveApiKey) {
+      return res.status(400).json({ error: 'Groq API Key is not configured on the server.' });
     }
 
     const prompt = `
@@ -172,7 +174,7 @@ RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
       response_format: { type: 'json_object' }
     }, {
       headers: {
-        'Authorization': `Bearer ${groq_api_key}`,
+        'Authorization': `Bearer ${effectiveApiKey}`,
         'Content-Type': 'application/json'
       },
       timeout: 30000

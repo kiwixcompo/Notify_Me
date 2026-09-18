@@ -76,6 +76,15 @@ export default function Dashboard() {
     focus: 'Please setup your profile in preferences'
   });
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedName = localStorage.getItem('user_name');
+      if (storedName) {
+        setUserProfile(prev => ({ ...prev, name: storedName }));
+      }
+    }
+  }, []);
+
   // Feed stats state
   const [feedStats, setFeedStats] = useState({ total: 0, feeds: 0 });
   const [recentItems, setRecentItems] = useState([]);
@@ -207,7 +216,10 @@ export default function Dashboard() {
   const fetchUserProfile = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE}/api/user/profile`, { headers: getHeaders() });
-      setUserProfile(prev => ({ ...prev, name: res.data.name }));
+      if (res.data?.name) {
+        setUserProfile(prev => ({ ...prev, name: res.data.name }));
+        localStorage.setItem('user_name', res.data.name);
+      }
     } catch (err) {
       console.error('Failed to load user profile', err);
     }

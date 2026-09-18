@@ -130,7 +130,21 @@ async function register(req, res, next) {
         .then(() => console.log('Default feeds provisioned for user:', user._id))
         .catch(err => console.error('Error provisioning default feeds:', err));
 
-      return res.status(201).json({ message: 'Registration successful.' });
+      const token = jwt.sign(
+        { userId: user._id },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      return res.status(201).json({
+        message: 'Registration successful.',
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name
+        }
+      });
     } catch (err) {
       console.error('Error during user creation:', {
         error: err.message,
