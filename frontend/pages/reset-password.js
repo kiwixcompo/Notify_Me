@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
+import { getApiBase } from '../utils/apiBase';
 
 export default function ResetPassword() {
   const router = useRouter();
@@ -29,8 +30,8 @@ export default function ResetPassword() {
     setError('');
     
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await axios.put(`${apiUrl}/api/auth/reset-password/${token}`, { password }, { timeout: 15000 });
+      const apiUrl = getApiBase();
+      const res = await axios.put(`${apiUrl}/api/auth/reset-password/${token}`, { password }, { timeout: 20000 });
       setMessage('Password reset successfully. Redirecting to dashboard...');
       
       if (res.data && res.data.token) {

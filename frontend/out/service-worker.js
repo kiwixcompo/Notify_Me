@@ -27,8 +27,15 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Stale-while-revalidate for GET requests
+// Stale-while-revalidate for GET requests, direct pass-through for API requests
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  
+  // Never intercept API requests (auth, jobs, push, etc.)
+  if (url.pathname.startsWith('/api') || url.hostname.includes('onrender.com')) {
+    return;
+  }
+
   if (event.request.method === 'GET') {
     event.respondWith(
       caches.match(event.request).then(cachedResponse => {
@@ -44,7 +51,7 @@ self.addEventListener('fetch', event => {
       })
     );
   } else if (event.request.method === 'POST') {
-    // For POST requests, try network, if fails, queue for background sync
+    // For non-API POST requests, try network, if fails, queue for background sync
     event.respondWith(
       fetch(event.request.clone()).catch(() => {
         return queuePostRequest(event.request);

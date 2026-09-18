@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { LockClosedIcon, EnvelopeIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
+import { getApiBase } from '../utils/apiBase';
 
 export default function AuthForm({ mode }) {
   const [email, setEmail] = useState('');
@@ -31,7 +32,7 @@ export default function AuthForm({ mode }) {
     
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = getApiBase();
       
       let token = null;
       let userName = name.trim();

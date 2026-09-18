@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Layout from '../components/Layout';
 import axios from 'axios';
+import { getApiBase } from '../utils/apiBase';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://notify-me-12z4.onrender.com';
+const API_BASE = getApiBase();
 
 export default function FiverrStudio() {
   const [gigUrl, setGigUrl] = useState('');

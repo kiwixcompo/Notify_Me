@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
+import { getApiBase } from '../utils/apiBase';
 
 export default function JobCalendar({ onDateSelect, selectedDate }) {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
@@ -23,7 +24,7 @@ export default function JobCalendar({ onDateSelect, selectedDate }) {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = getApiBase();
       const response = await axios.get(
         `${apiUrl}/api/jobs/calendar?month=${currentMonth}&year=${currentYear}&filterByPreferences=${filterByPreferences}`,
         {

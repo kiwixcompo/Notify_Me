@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Layout from '../components/Layout';
+import { getApiBase } from '../utils/apiBase';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE = getApiBase();
 
 export default function LinkedInCrawler() {
   const [activePlatform, setActivePlatform] = useState('linkedin'); // 'linkedin', 'x', 'facebook'

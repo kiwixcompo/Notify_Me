@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
 import Layout from '../components/Layout';
+import { getApiBase, isAdminUser } from '../utils/apiBase';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE = getApiBase();
 
 const MODULES = [
   {
@@ -72,6 +73,7 @@ export default function Dashboard() {
   const [isClient, setIsClient] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: 'Candidate',
+    email: '',
     title: 'M.Sc. Software Engineering',
     focus: 'Please setup your profile in preferences',
     role: ''
@@ -81,11 +83,13 @@ export default function Dashboard() {
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem('user_name');
       const storedRole = localStorage.getItem('user_role');
-      if (storedName || storedRole) {
+      const storedEmail = localStorage.getItem('user_email');
+      if (storedName || storedRole || storedEmail) {
         setUserProfile(prev => ({
           ...prev,
           name: storedName || prev.name,
-          role: storedRole || prev.role
+          role: storedRole || prev.role,
+          email: storedEmail || prev.email
         }));
       }
     }
@@ -226,17 +230,21 @@ export default function Dashboard() {
         setUserProfile(prev => ({
           ...prev,
           name: res.data.name || prev.name,
-          role: res.data.role || prev.role
+          role: res.data.role || prev.role,
+          email: res.data.email || prev.email
         }));
         if (res.data.name) localStorage.setItem('user_name', res.data.name);
         if (res.data.role) localStorage.setItem('user_role', res.data.role);
+        if (res.data.email) localStorage.setItem('user_email', res.data.email);
       }
     } catch (err) {
       console.error('Failed to load user profile', err);
     }
   }, [getHeaders]);
 
-  const currentModules = userProfile.role === 'admin' ? [
+  const isUserAdmin = isAdminUser(userProfile.role, userProfile.email);
+
+  const currentModules = isUserAdmin ? [
     ...MODULES,
     {
       href: '/admin',
@@ -379,14 +387,14 @@ export default function Dashboard() {
         <div className="px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quick Actions</h2>
-            {userProfile.role === 'admin' && (
+            {isUserAdmin && (
               <Link href="/admin" className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
                 🛡️ Manage Users
               </Link>
             )}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide scroll-smooth-ios">
-            {userProfile.role === 'admin' && (
+            {isUserAdmin && (
               <Link
                 href="/admin"
                 className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold border tap-highlight bg-indigo-900 text-white border-indigo-800 shadow-sm min-h-[44px]"

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { EnvelopeIcon } from '@heroicons/react/24/solid';
+import { getApiBase } from '../utils/apiBase';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -15,14 +16,14 @@ export default function ForgotPassword() {
     setMessage('');
     
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await axios.post(`${apiUrl}/api/auth/forgot-password`, { email: email.trim() }, { timeout: 15000 });
+      const apiUrl = getApiBase();
+      const res = await axios.post(`${apiUrl}/api/auth/forgot-password`, { email: email.trim() }, { timeout: 20000 });
       setMessage('A password reset link has been sent to your email.');
     } catch (err) {
       if (err.response?.data?.error) {
         setError(err.response.data.error);
       } else {
-        setError('Network error or server unavailable. Please try again.');
+        setError('Network error or server unavailable. Please ensure you are connected and try again.');
       }
     } finally {
       setLoading(false);

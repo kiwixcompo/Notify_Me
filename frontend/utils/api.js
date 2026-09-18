@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getApiBase } from './apiBase';
 
 // Create axios instance without baseURL to prevent duplication
 const api = axios.create({
@@ -14,8 +15,8 @@ api.interceptors.request.use((config) => {
     return config;
   }
   
-  // Otherwise, prepend the base URL
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  // Otherwise, prepend the base URL dynamically
+  const baseURL = getApiBase();
   config.url = `${baseURL}${config.url.startsWith('/') ? '' : '/'}${config.url}`;
   return config;
 });

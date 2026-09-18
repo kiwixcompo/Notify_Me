@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Layout from '../components/Layout';
+import { getApiBase } from '../utils/apiBase';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE = getApiBase();
 
 export default function AIJobHunter() {
   const [tab, setTab] = useState('search'); // 'search', 'resume', 'pipeline'
@@ -400,11 +401,11 @@ export default function AIJobHunter() {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => setShowReminderModal(true)}
                     type="button"
-                    className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm min-h-[44px]"
                     title="Set email reminder for this search"
                   >
                     🔔 Remind Me of Matching Jobs
@@ -412,7 +413,7 @@ export default function AIJobHunter() {
                   <button
                     onClick={() => handleSearch()}
                     disabled={loading}
-                    className="flex-1 sm:flex-initial px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow transition-all flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow transition-all flex items-center justify-center gap-2 min-h-[44px]"
                   >
                     {loading ? '⚡ Searching Global Feeds...' : '🚀 Launch Search'}
                   </button>
@@ -645,7 +646,7 @@ export default function AIJobHunter() {
                             &larr; Previous 10
                           </button>
 
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 max-w-[200px] sm:max-w-none overflow-x-auto scrollbar-hide py-1">
                             {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
                               <button
                                 key={pageNum}
@@ -653,7 +654,7 @@ export default function AIJobHunter() {
                                   setCurrentPage(pageNum);
                                   window.scrollTo({ top: 400, behavior: 'smooth' });
                                 }}
-                                className={`w-8 h-8 rounded-lg text-xs font-bold transition flex items-center justify-center ${
+                                className={`w-8 h-8 rounded-lg text-xs font-bold transition flex items-center justify-center shrink-0 ${
                                   currentPage === pageNum
                                     ? 'bg-blue-600 text-white shadow-sm'
                                     : 'text-slate-600 hover:bg-slate-100'

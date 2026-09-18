@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getApiBase } from '../../../../utils/apiBase';
 
 export default async function handler(req, res) {
   const { method, body, query } = req;
@@ -8,7 +9,7 @@ export default async function handler(req, res) {
   try {
     const response = await axios({
       method,
-      url: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/feeds/website-links/${id}`,
+      url: `${getApiBase()}/api/feeds/website-links/${id}`,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': token,

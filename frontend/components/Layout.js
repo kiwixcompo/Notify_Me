@@ -3,8 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import axios from 'axios';
 import { ToastProvider } from './MobileToast';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+import { getApiBase, isAdminUser } from '../utils/apiBase';
 
 // ─── SVG Icons for Bottom Nav (crisp 24px, not emoji) ──────────────────────
 function IconHome({ filled }) {
@@ -119,20 +118,28 @@ export default function Layout({ children }) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userRole, setUserRole] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedRole = localStorage.getItem('user_role');
+      const storedEmail = localStorage.getItem('user_email');
       if (storedRole) setUserRole(storedRole);
+      if (storedEmail) setUserEmail(storedEmail);
 
       const token = localStorage.getItem('token');
       if (token) {
-        axios.get(`${API_BASE}/api/user/profile`, {
+        const apiBase = getApiBase();
+        axios.get(`${apiBase}/api/user/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(res => {
           if (res.data?.role) {
             setUserRole(res.data.role);
             localStorage.setItem('user_role', res.data.role);
+          }
+          if (res.data?.email) {
+            setUserEmail(res.data.email);
+            localStorage.setItem('user_email', res.data.email);
           }
         }).catch(() => {});
       }
@@ -141,16 +148,18 @@ export default function Layout({ children }) {
 
   const isActive = (path) => router.pathname === path;
 
-  const currentNavLinks = userRole === 'admin'
+  const isAdmin = isAdminUser(userRole, userEmail);
+
+  const currentNavLinks = isAdmin
     ? [...navLinks, { href: '/admin', icon: '🛡️', label: 'Admin' }]
     : navLinks;
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col w-full max-w-full overflow-x-hidden">
 
         {/* ── Desktop / Tablet Top Navigation ──────────────────── */}
-        <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm w-full max-w-full">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16 items-center">
 
@@ -237,7 +246,7 @@ export default function Layout({ children }) {
 
                 {/* Mobile: compact top-right notification/profile area (plus Admin badge if admin) */}
                 <div className="md:hidden flex items-center gap-2">
-                  {userRole === 'admin' && (
+                  {isAdmin && (
                     <Link
                       href="/admin"
                       className="flex items-center justify-center px-2.5 py-1.5 rounded-lg bg-indigo-900 text-white text-xs font-bold shadow-sm border border-indigo-700"
@@ -262,7 +271,7 @@ export default function Layout({ children }) {
 
         {/* ── Main Content Area ─────────────────────────────────── */}
         {/* On mobile: pb-bottom-nav gives room for the fixed bottom nav */}
-        <main className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 md:py-6 w-full flex-1 pb-bottom-nav md:pb-0">
+        <main className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 md:py-6 w-full max-w-full flex-1 pb-bottom-nav md:pb-0 overflow-x-hidden">
           {children}
         </main>
 

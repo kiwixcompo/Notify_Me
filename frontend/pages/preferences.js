@@ -3,10 +3,12 @@ import { useRouter } from 'next/router';
 import api from '../utils/api';
 import Layout from '../components/Layout';
 import { PlusIcon, TrashIcon, PencilIcon, BriefcaseIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
+import { isAdminUser } from '../utils/apiBase';
 
 export default function Preferences() {
   const router = useRouter();
   const [userRole, setUserRole] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -15,7 +17,9 @@ export default function Preferences() {
         return;
       }
       const role = localStorage.getItem('user_role');
+      const email = localStorage.getItem('user_email');
       if (role) setUserRole(role);
+      if (email) setUserEmail(email);
 
       const token = localStorage.getItem('token');
       if (token) {
@@ -23,6 +27,10 @@ export default function Preferences() {
           if (res.data?.role) {
             setUserRole(res.data.role);
             localStorage.setItem('user_role', res.data.role);
+          }
+          if (res.data?.email) {
+            setUserEmail(res.data.email);
+            localStorage.setItem('user_email', res.data.email);
           }
         }).catch(() => {});
       }
@@ -466,7 +474,7 @@ export default function Preferences() {
         )}
 
         {/* Admin Shortcut for Admins */}
-        {userRole === 'admin' && (
+        {isAdminUser(userRole, userEmail) && (
           <div className="bg-gradient-to-r from-slate-900 to-indigo-900 rounded-2xl p-5 mb-6 text-white shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <div className="flex items-center gap-2">
