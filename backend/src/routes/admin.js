@@ -7,11 +7,22 @@ const { requireAuth } = require('../controllers/userController');
 const sendEmail = require('../utils/sendEmail');
 
 // Admin authorization middleware
+const ADMIN_EMAIL = 'williamsaonen@gmail.com';
+
 async function requireAdmin(req, res, next) {
   try {
     const user = await User.findById(req.userId);
-    if (!user || user.role !== 'admin') {
+    if (!user) {
       return res.status(403).json({ error: 'Access denied: Admin privileges required.' });
+    }
+    // Allow by role OR by the designated hardcoded admin email
+    if (user.role !== 'admin' && user.email !== ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Access denied: Admin privileges required.' });
+    }
+    // If the user is the admin by email but role is not yet set, promote it silently
+    if (user.email === ADMIN_EMAIL && user.role !== 'admin') {
+      user.role = 'admin';
+      await user.save({ validateBeforeSave: false });
     }
     req.adminUser = user;
     next();

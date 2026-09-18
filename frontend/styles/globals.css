@@ -16,17 +16,14 @@
     /* Prevent text size inflation on orientation change */
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
+    /* Do NOT add overflow-x: hidden here — it breaks wheel/touchpad scrolling in Chromium */
   }
 
   body {
     /* Prevent overscroll bounce behind safe areas */
     overscroll-behavior-y: none;
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
+    /* clip prevents horizontal scroll without creating a new BFC / breaking wheel scroll */
+    overflow-x: clip;
   }
 
   #__next {

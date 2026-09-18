@@ -159,16 +159,16 @@ export default function Layout({ children }) {
       <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col w-full max-w-full overflow-x-hidden">
 
         {/* ── Desktop / Tablet Top Navigation ──────────────────── */}
-        <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm w-full max-w-full">
+        <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm w-full">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16 items-center">
+            <div className="flex justify-between h-16 items-center gap-2 min-w-0">
 
               {/* Logo */}
               <div className="flex items-center space-x-2 shrink-0">
                 <span className="text-2xl" aria-hidden="true">⚡</span>
                 <Link
                   href="/dashboard"
-                  className="flex items-center gap-1.5 font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                  className="flex items-center gap-1.5 font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap"
                 >
                   <span>Notify_Me</span>
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200 uppercase tracking-wide">
@@ -178,12 +178,12 @@ export default function Layout({ children }) {
               </div>
 
               {/* Desktop Navigation (xl+) */}
-              <div className="hidden xl:flex items-center space-x-1">
+              <div className="hidden xl:flex items-center gap-0.5 min-w-0 overflow-x-auto scrollbar-hide flex-1 justify-center">
                 {currentNavLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap min-h-[44px] ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap min-h-[44px] shrink-0 ${
                       isActive(item.href)
                         ? 'bg-blue-50 text-blue-700 font-semibold'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -196,13 +196,13 @@ export default function Layout({ children }) {
               </div>
 
               {/* Tablet Navigation (md–xl) */}
-              <div className="hidden md:flex xl:hidden items-center space-x-1">
+              <div className="hidden md:flex xl:hidden items-center gap-0.5 min-w-0 overflow-x-auto scrollbar-hide flex-1">
                 {currentNavLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     title={item.label}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap min-h-[44px] ${
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap min-h-[44px] shrink-0 ${
                       isActive(item.href)
                         ? 'bg-blue-50 text-blue-700 font-bold'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
