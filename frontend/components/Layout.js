@@ -161,10 +161,10 @@ export default function Layout({ children }) {
         {/* ── Desktop / Tablet Top Navigation ──────────────────── */}
         <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm w-full">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16 items-center gap-2 min-w-0">
+            <div className="flex h-16 items-center gap-2 min-w-0">
 
               {/* Logo */}
-              <div className="flex items-center space-x-2 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-2xl" aria-hidden="true">⚡</span>
                 <Link
                   href="/dashboard"
@@ -177,13 +177,14 @@ export default function Layout({ children }) {
                 </Link>
               </div>
 
-              {/* Desktop Navigation (xl+) */}
-              <div className="hidden xl:flex items-center gap-0.5 min-w-0 overflow-x-auto scrollbar-hide flex-1 justify-center">
+              {/* Desktop Navigation (xl+) — icon + label, left-aligned, no justify-center */}
+              <div className="hidden xl:flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
                 {currentNavLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap min-h-[44px] shrink-0 ${
+                    title={item.label}
+                    className={`px-2.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                       isActive(item.href)
                         ? 'bg-blue-50 text-blue-700 font-semibold'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -195,27 +196,27 @@ export default function Layout({ children }) {
                 ))}
               </div>
 
-              {/* Tablet Navigation (md–xl) */}
-              <div className="hidden md:flex xl:hidden items-center gap-0.5 min-w-0 overflow-x-auto scrollbar-hide flex-1">
+              {/* Tablet Navigation (md–xl) — ICON ONLY, centered, fits all items without overflow */}
+              <div className="hidden md:flex xl:hidden items-center gap-1 flex-1 min-w-0 justify-center">
                 {currentNavLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     title={item.label}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap min-h-[44px] shrink-0 ${
+                    aria-label={item.label}
+                    className={`w-10 h-10 rounded-lg transition-colors flex items-center justify-center text-lg shrink-0 ${
                       isActive(item.href)
-                        ? 'bg-blue-50 text-blue-700 font-bold'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
                     }`}
                   >
                     <span aria-hidden="true">{item.icon}</span>
-                    <span>{item.label}</span>
                   </Link>
                 ))}
               </div>
 
-              {/* Right side actions */}
-              <div className="flex items-center space-x-2 shrink-0">
+              {/* Right side actions — pushed to end with ml-auto on mobile */}
+              <div className="flex items-center gap-1.5 ml-auto shrink-0">
                 {/* Clear data — desktop/tablet only */}
                 <button
                   onClick={() => {
@@ -224,7 +225,7 @@ export default function Layout({ children }) {
                       window.location.reload();
                     }
                   }}
-                  className="hidden sm:flex px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition-colors items-center gap-1 min-h-[44px]"
+                  className="hidden sm:flex px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition-colors items-center gap-1"
                   title="Clear all saved data"
                 >
                   <span aria-hidden="true">🗑️</span>
@@ -237,28 +238,28 @@ export default function Layout({ children }) {
                     localStorage.removeItem('token');
                     window.location.href = '/login';
                   }}
-                  className="hidden sm:flex px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors items-center gap-1 min-h-[44px]"
+                  className="hidden sm:flex px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors items-center gap-1"
                   title="Log out"
                 >
                   <span aria-hidden="true">🚪</span>
                   <span>Log out</span>
                 </button>
 
-                {/* Mobile: compact top-right notification/profile area (plus Admin badge if admin) */}
-                <div className="md:hidden flex items-center gap-2">
+                {/* Mobile top-right: icon-only admin shield + settings cog (no text = no overflow) */}
+                <div className="md:hidden flex items-center gap-1.5">
                   {isAdmin && (
                     <Link
                       href="/admin"
-                      className="flex items-center justify-center px-2.5 py-1.5 rounded-lg bg-indigo-900 text-white text-xs font-bold shadow-sm border border-indigo-700"
+                      className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-900 text-white text-base shadow-sm border border-indigo-700"
                       title="Admin Panel"
                       aria-label="Admin Panel"
                     >
-                      🛡️ Admin
+                      🛡️
                     </Link>
                   )}
                   <Link
                     href="/preferences"
-                    className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white text-sm font-bold"
+                    className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 text-white text-sm font-bold"
                     aria-label="Settings and profile"
                   >
                     ⚙
@@ -271,7 +272,7 @@ export default function Layout({ children }) {
 
         {/* ── Main Content Area ─────────────────────────────────── */}
         {/* On mobile: pb-bottom-nav gives room for the fixed bottom nav */}
-        <main className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 md:py-6 w-full max-w-full flex-1 pb-bottom-nav md:pb-0 overflow-x-hidden">
+        <main className="max-w-7xl mx-auto w-full flex-1 pb-bottom-nav md:pb-0 overflow-x-hidden px-0 sm:px-6 lg:px-8 md:py-6">
           {children}
         </main>
 
