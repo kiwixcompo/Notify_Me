@@ -206,24 +206,24 @@ export default function AdminUsers() {
     <Layout>
       <div className="max-w-7xl mx-auto py-4 px-3 sm:py-6 sm:px-6 space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 rounded-2xl p-4 sm:p-8 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xl">🛡️</span>
               <span className="text-xs font-bold uppercase tracking-widest text-indigo-300 bg-indigo-900/40 px-2.5 py-0.5 rounded-full border border-indigo-700">
                 Administration Panel
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight mt-1 break-words">
               Manage Registered Users
             </h1>
-            <p className="text-slate-300 text-xs sm:text-sm mt-1">
+            <p className="text-slate-300 text-xs sm:text-sm mt-1 break-words">
               Search users, reset credentials, dispatch reset links, modify permissions, or remove accounts.
             </p>
           </div>
-          <div className="bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-center min-w-[100px]">
+          <div className="bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-center shrink-0 self-start md:self-auto min-w-[90px]">
             <div className="text-2xl font-black">{users.length}</div>
-            <div className="text-[11px] text-blue-200 font-medium uppercase tracking-wider">Total Users</div>
+            <div className="text-[10px] sm:text-[11px] text-blue-200 font-medium uppercase tracking-wider">Total Users</div>
           </div>
         </div>
 

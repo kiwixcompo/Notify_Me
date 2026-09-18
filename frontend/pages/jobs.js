@@ -353,17 +353,17 @@ export default function AIJobHunter() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   🌐 Target Direct Websites & ATS Links (Greenhouse, Lever, Ashby, Company Career Pages)
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="url"
                     value={customUrl}
                     onChange={(e) => setCustomUrl(e.target.value)}
                     placeholder="https://boards.greenhouse.io/company or https://careers.company.com"
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-0"
                   />
                   <button
                     onClick={handleAddCustomUrl}
-                    className="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-900 transition-colors"
+                    className="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-900 transition-colors shrink-0"
                   >
                     + Add Link
                   </button>
@@ -381,9 +381,9 @@ export default function AIJobHunter() {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-3 border-t border-slate-100">
                 {/* Timeframe Filter */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <label className="text-xs font-semibold text-slate-600 whitespace-nowrap">⏳ Timeframe:</label>
                   <select
                     value={timeFilter}
@@ -401,11 +401,11 @@ export default function AIJobHunter() {
                   </select>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
                   <button
                     onClick={() => setShowReminderModal(true)}
                     type="button"
-                    className="w-full sm:w-auto px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm min-h-[44px]"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm min-h-[44px] text-center"
                     title="Set email reminder for this search"
                   >
                     🔔 Remind Me of Matching Jobs
