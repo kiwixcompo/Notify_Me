@@ -175,4 +175,61 @@ router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/config - Get system configuration settings (e.g. GROQ_API_KEY status)
+router.get('/config', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const SystemConfig = require('../models/SystemConfig');
+    const groqConfig = await SystemConfig.findOne({ key: 'GROQ_API_KEY' });
+    const groqValue = (groqConfig && groqConfig.value) || process.env.GROQ_API_KEY || '';
+
+    let maskedKey = '';
+    if (groqValue) {
+      if (groqValue.length > 8) {
+        maskedKey = groqValue.substring(0, 4) + '...' + groqValue.substring(groqValue.length - 4);
+      } else {
+        maskedKey = '••••••••';
+      }
+    }
+
+    res.json({
+      success: true,
+      config: {
+        groq_api_key_configured: Boolean(groqValue),
+        groq_api_key_masked: maskedKey,
+        groq_api_key_source: groqConfig?.value ? 'database' : (process.env.GROQ_API_KEY ? 'environment' : 'none')
+      }
+    });
+  } catch (err) {
+    console.error('Admin get config error:', err);
+    res.status(500).json({ error: err.message || 'Failed to load system configuration.' });
+  }
+});
+
+// PUT /api/admin/config - Update system configuration settings
+router.put('/config', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const SystemConfig = require('../models/SystemConfig');
+    const { groq_api_key } = req.body;
+
+    if (groq_api_key !== undefined) {
+      const trimmed = groq_api_key.trim();
+      await SystemConfig.findOneAndUpdate(
+        { key: 'GROQ_API_KEY' },
+        { 
+          key: 'GROQ_API_KEY', 
+          value: trimmed, 
+          description: 'Universal Groq API key for system-wide AI features',
+          updatedBy: req.userId 
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    res.json({ success: true, message: 'System configuration updated successfully.' });
+  } catch (err) {
+    console.error('Admin update config error:', err);
+    res.status(500).json({ error: err.message || 'Failed to update system configuration.' });
+  }
+});
+
 module.exports = router;

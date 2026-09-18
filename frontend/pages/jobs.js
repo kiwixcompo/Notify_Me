@@ -514,9 +514,14 @@ export default function AIJobHunter() {
                             <div className="flex items-center gap-2">
                               {scoreInfo?.data && (
                                 <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                  scoreInfo.data.score >= 0.8 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                  (scoreInfo.data.scorePercent >= 80 || scoreInfo.data.score >= 0.8) ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                                 }`}>
-                                  Score: {Math.round(scoreInfo.data.score * 100)}%
+                                  Score: {scoreInfo.data.scorePercent !== undefined ? scoreInfo.data.scorePercent : Math.round(scoreInfo.data.score * (scoreInfo.data.score <= 1 ? 100 : 1))}%
+                                </span>
+                              )}
+                              {scoreInfo?.error && (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                  Score error
                                 </span>
                               )}
                               <a
@@ -535,14 +540,20 @@ export default function AIJobHunter() {
                           )}
 
                           {/* Match Reasons */}
-                          {scoreInfo?.data?.reasons && (
+                          {(scoreInfo?.data?.reasons || scoreInfo?.data?.match_reasons) && (
                             <div className="p-3 bg-slate-50 rounded-lg text-xs text-slate-700 space-y-1">
                               <span className="font-semibold text-slate-800">Match Analysis:</span>
                               <ul className="list-disc list-inside space-y-0.5 text-slate-600">
-                                {scoreInfo.data.reasons.map((r, i) => (
+                                {(scoreInfo.data.reasons || scoreInfo.data.match_reasons).map((r, i) => (
                                   <li key={i}>{r}</li>
                                 ))}
                               </ul>
+                              {scoreInfo?.data?.missing_skills?.length > 0 && (
+                                <div className="pt-1.5 mt-1 border-t border-slate-200/60 text-slate-500">
+                                  <span className="font-semibold text-slate-700">Recommended Skills to Add: </span>
+                                  {scoreInfo.data.missing_skills.join(', ')}
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -552,9 +563,15 @@ export default function AIJobHunter() {
                               <button
                                 onClick={() => handleScoreMatch(job)}
                                 disabled={scoreInfo?.loading}
-                                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-medium transition-colors"
+                                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  scoreInfo?.loading
+                                    ? 'bg-blue-100 text-blue-700 animate-pulse'
+                                    : scoreInfo?.data
+                                      ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                }`}
                               >
-                                {scoreInfo?.loading ? 'Scoring...' : '🎯 Calculate Resume Score'}
+                                {scoreInfo?.loading ? 'Scoring...' : scoreInfo?.data ? '✓ Recalculate Score' : '🎯 Calculate Resume Score'}
                               </button>
                               <button
                                 onClick={() => handleGenerateCoverLetter(job)}

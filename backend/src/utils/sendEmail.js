@@ -13,8 +13,12 @@ const sendEmail = async (options) => {
   });
 
   // Define email options
+  const displayName = process.env.FROM_NAME || 'Notify Me | AI Job Intelligence';
+  const senderEmail = process.env.EMAIL_FROM || process.env.SMTP_USER;
+
   const mailOptions = {
-    from: `${process.env.FROM_NAME || 'Notify Me'} <${process.env.EMAIL_FROM || process.env.SMTP_USER}>`,
+    from: `"${displayName}" <${senderEmail}>`,
+    replyTo: `"Notify Me Support" <support@notifyme.app>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
