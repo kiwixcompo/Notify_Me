@@ -49,6 +49,7 @@ app.use('/api/portals', require('./routes/portals'));
 app.use('/api/feeds/website-links', require('./routes/websiteLinks'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/fiverr', require('./routes/fiverr'));
+app.use('/api/admin', require('./routes/admin'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

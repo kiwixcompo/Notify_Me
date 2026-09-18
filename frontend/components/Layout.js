@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import axios from 'axios';
 import { ToastProvider } from './MobileToast';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // ─── SVG Icons for Bottom Nav (crisp 24px, not emoji) ──────────────────────
 function IconHome({ filled }) {
@@ -115,8 +118,32 @@ const navLinks = [
 export default function Layout({ children }) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userRole, setUserRole] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedRole = localStorage.getItem('user_role');
+      if (storedRole) setUserRole(storedRole);
+
+      const token = localStorage.getItem('token');
+      if (token) {
+        axios.get(`${API_BASE}/api/user/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(res => {
+          if (res.data?.role) {
+            setUserRole(res.data.role);
+            localStorage.setItem('user_role', res.data.role);
+          }
+        }).catch(() => {});
+      }
+    }
+  }, []);
 
   const isActive = (path) => router.pathname === path;
+
+  const currentNavLinks = userRole === 'admin'
+    ? [...navLinks, { href: '/admin', icon: '🛡️', label: 'Admin' }]
+    : navLinks;
 
   return (
     <ToastProvider>
@@ -143,7 +170,7 @@ export default function Layout({ children }) {
 
               {/* Desktop Navigation (xl+) */}
               <div className="hidden xl:flex items-center space-x-1">
-                {navLinks.map((item) => (
+                {currentNavLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -161,7 +188,7 @@ export default function Layout({ children }) {
 
               {/* Tablet Navigation (md–xl) */}
               <div className="hidden md:flex xl:hidden items-center space-x-1">
-                {navLinks.map((item) => (
+                {currentNavLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}

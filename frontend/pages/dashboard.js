@@ -73,14 +73,20 @@ export default function Dashboard() {
   const [userProfile, setUserProfile] = useState({
     name: 'Candidate',
     title: 'M.Sc. Software Engineering',
-    focus: 'Please setup your profile in preferences'
+    focus: 'Please setup your profile in preferences',
+    role: ''
   });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedName = localStorage.getItem('user_name');
-      if (storedName) {
-        setUserProfile(prev => ({ ...prev, name: storedName }));
+      const storedRole = localStorage.getItem('user_role');
+      if (storedName || storedRole) {
+        setUserProfile(prev => ({
+          ...prev,
+          name: storedName || prev.name,
+          role: storedRole || prev.role
+        }));
       }
     }
   }, []);
@@ -216,14 +222,33 @@ export default function Dashboard() {
   const fetchUserProfile = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE}/api/user/profile`, { headers: getHeaders() });
-      if (res.data?.name) {
-        setUserProfile(prev => ({ ...prev, name: res.data.name }));
-        localStorage.setItem('user_name', res.data.name);
+      if (res.data) {
+        setUserProfile(prev => ({
+          ...prev,
+          name: res.data.name || prev.name,
+          role: res.data.role || prev.role
+        }));
+        if (res.data.name) localStorage.setItem('user_name', res.data.name);
+        if (res.data.role) localStorage.setItem('user_role', res.data.role);
       }
     } catch (err) {
       console.error('Failed to load user profile', err);
     }
   }, [getHeaders]);
+
+  const currentModules = userProfile.role === 'admin' ? [
+    ...MODULES,
+    {
+      href: '/admin',
+      icon: '🛡️',
+      label: 'Admin Control Center',
+      desc: 'Manage registered users, reset passwords, assign roles, and handle deletions.',
+      color: 'from-slate-900 to-indigo-950',
+      badge: 'Admin Only',
+      badgeColor: 'bg-red-100 text-red-700',
+      stats: 'User Accounts · Password Resets · Roles'
+    }
+  ] : MODULES;
 
   useEffect(() => {
     if (!isClient) return;
@@ -444,7 +469,7 @@ export default function Dashboard() {
         <div className="px-4 pb-4">
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">All Tools</h2>
           <div className="grid grid-cols-2 gap-3">
-            {MODULES.map((mod) => (
+            {currentModules.map((mod) => (
               <Link
                 key={mod.label}
                 href={mod.href}
@@ -579,7 +604,7 @@ export default function Dashboard() {
             🗂️ Tools & Modules
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {MODULES.map((mod) => (
+            {currentModules.map((mod) => (
               <Link
                 key={mod.label}
                 href={mod.href}
