@@ -375,10 +375,26 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Quick Action horizontal scroll strip */}
+        {/* Quick Actions — horizontal scroll */}
         <div className="px-4 py-4">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Actions</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quick Actions</h2>
+            {userProfile.role === 'admin' && (
+              <Link href="/admin" className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
+                🛡️ Manage Users
+              </Link>
+            )}
+          </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide scroll-smooth-ios">
+            {userProfile.role === 'admin' && (
+              <Link
+                href="/admin"
+                className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold border tap-highlight bg-indigo-900 text-white border-indigo-800 shadow-sm min-h-[44px]"
+              >
+                <span aria-hidden="true">🛡️</span>
+                Admin Panel
+              </Link>
+            )}
             {[
               { href: '/grants', label: 'Find PhDs', icon: '🔬', color: 'bg-purple-100 text-purple-800 border-purple-200' },
               { href: '/jobs', label: 'Job Search', icon: '💼', color: 'bg-blue-100 text-blue-800 border-blue-200' },

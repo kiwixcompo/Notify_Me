@@ -6,11 +6,25 @@ import { PlusIcon, TrashIcon, PencilIcon, BriefcaseIcon, AcademicCapIcon } from 
 
 export default function Preferences() {
   const router = useRouter();
+  const [userRole, setUserRole] = useState('');
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (!localStorage.getItem('token')) {
         window.location.href = '/login';
+        return;
+      }
+      const role = localStorage.getItem('user_role');
+      if (role) setUserRole(role);
+
+      const token = localStorage.getItem('token');
+      if (token) {
+        api.get('/api/user/profile').then(res => {
+          if (res.data?.role) {
+            setUserRole(res.data.role);
+            localStorage.setItem('user_role', res.data.role);
+          }
+        }).catch(() => {});
       }
     }
   }, []);
@@ -448,6 +462,28 @@ export default function Preferences() {
         {success && (
           <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
             {success}
+          </div>
+        )}
+
+        {/* Admin Shortcut for Admins */}
+        {userRole === 'admin' && (
+          <div className="bg-gradient-to-r from-slate-900 to-indigo-900 rounded-2xl p-5 mb-6 text-white shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🛡️</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-700">
+                  Administrator Area
+                </span>
+              </div>
+              <h3 className="text-base font-extrabold mt-1 text-white">Manage Registered Users &amp; System Settings</h3>
+              <p className="text-xs text-slate-300 mt-0.5">Access user account controls, change passwords, and configure the universal Groq API key.</p>
+            </div>
+            <a
+              href="/admin"
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow shrink-0"
+            >
+              Open Admin Panel &rarr;
+            </a>
           </div>
         )}
 

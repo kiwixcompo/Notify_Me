@@ -235,8 +235,18 @@ export default function Layout({ children }) {
                   <span>Log out</span>
                 </button>
 
-                {/* Mobile: compact top-right notification/profile area (hamburger removed) */}
+                {/* Mobile: compact top-right notification/profile area (plus Admin badge if admin) */}
                 <div className="md:hidden flex items-center gap-2">
+                  {userRole === 'admin' && (
+                    <Link
+                      href="/admin"
+                      className="flex items-center justify-center px-2.5 py-1.5 rounded-lg bg-indigo-900 text-white text-xs font-bold shadow-sm border border-indigo-700"
+                      title="Admin Panel"
+                      aria-label="Admin Panel"
+                    >
+                      🛡️ Admin
+                    </Link>
+                  )}
                   <Link
                     href="/preferences"
                     className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white text-sm font-bold"

@@ -142,7 +142,8 @@ async function register(req, res, next) {
         user: {
           id: user._id,
           email: user.email,
-          name: user.name
+          name: user.name,
+          role: user.role || 'user'
         }
       });
     } catch (err) {
@@ -261,7 +262,8 @@ async function login(req, res, next) {
         user: {
           id: user._id,
           email: user.email,
-          name: user.name
+          name: user.name,
+          role: user.role || 'user'
         }
       });
     } catch (tokenErr) {

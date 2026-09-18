@@ -47,6 +47,8 @@ export default function AuthForm({ mode }) {
         if (regRes.data?.token) {
           token = regRes.data.token;
           if (regRes.data.user?.name) userName = regRes.data.user.name;
+          if (regRes.data.user?.role) localStorage.setItem('user_role', regRes.data.user.role);
+          if (regRes.data.user?.email) localStorage.setItem('user_email', regRes.data.user.email);
         }
       }
       
@@ -60,6 +62,8 @@ export default function AuthForm({ mode }) {
         if (loginRes.data?.token) {
           token = loginRes.data.token;
           if (loginRes.data.user?.name) userName = loginRes.data.user.name;
+          if (loginRes.data.user?.role) localStorage.setItem('user_role', loginRes.data.user.role);
+          if (loginRes.data.user?.email) localStorage.setItem('user_email', loginRes.data.user.email);
         }
       }
       
