@@ -18,6 +18,8 @@ export default function AIJobHunter() {
   const [uploadingResume, setUploadingResume] = useState(false);
   const [activeCoverLetter, setActiveCoverLetter] = useState({ id: null, text: '', loading: false });
   const [timeFilter, setTimeFilter] = useState('any'); // '24h', '7d', '30d', 'any'
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [pipeline, setPipeline] = useState([]);
   const [scoringMap, setScoringMap] = useState({});
   const [groqApiKey, setGroqApiKey] = useState('');
@@ -76,13 +78,14 @@ export default function AIJobHunter() {
   const handleSearch = async (customFilter) => {
     setLoading(true);
     setError('');
+    setCurrentPage(1);
     const activeFilter = customFilter !== undefined ? customFilter : timeFilter;
     try {
       const res = await axios.post(`${API_BASE}/api/job-hunter/search`, {
         keywords,
         location,
         timeFilter: activeFilter,
-        max_results: 30,
+        max_results: 100,
         custom_urls: customUrls
       }, { headers: getHeaders() });
 
@@ -486,117 +489,180 @@ export default function AIJobHunter() {
                 </div>
               )}
 
-              {jobs.map((job) => {
-                const scoreInfo = scoringMap[job.id];
+              {/* Pagination calculations */}
+              {(() => {
+                const totalPages = Math.ceil(jobs.length / pageSize) || 1;
+                const paginatedJobs = jobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
                 return (
-                  <div key={job.id} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all space-y-3">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                      <div>
-                        <h4 className="font-bold text-slate-900 text-base">{job.title}</h4>
-                        <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
-                          <span className="font-semibold text-slate-700">{job.company}</span>
-                          <span>•</span>
-                          <span>📍 {job.location}</span>
-                          <span>•</span>
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600">{job.source}</span>
+                  <>
+                    {paginatedJobs.map((job) => {
+                      const scoreInfo = scoringMap[job.id];
+                      return (
+                        <div key={job.id} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all space-y-3">
+                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                            <div>
+                              <h4 className="font-bold text-slate-900 text-base">{job.title}</h4>
+                              <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                                <span className="font-semibold text-slate-700">{job.company}</span>
+                                <span>•</span>
+                                <span>📍 {job.location}</span>
+                                <span>•</span>
+                                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">{job.source}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {scoreInfo?.data && (
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                  scoreInfo.data.score >= 0.8 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  Score: {Math.round(scoreInfo.data.score * 100)}%
+                                </span>
+                              )}
+                              <a
+                                href={job.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                View Original Link ↗
+                              </a>
+                            </div>
+                          </div>
+
+                          {job.description && (
+                            <p className="text-xs text-slate-600 line-clamp-2">{job.description}</p>
+                          )}
+
+                          {/* Match Reasons */}
+                          {scoreInfo?.data?.reasons && (
+                            <div className="p-3 bg-slate-50 rounded-lg text-xs text-slate-700 space-y-1">
+                              <span className="font-semibold text-slate-800">Match Analysis:</span>
+                              <ul className="list-disc list-inside space-y-0.5 text-slate-600">
+                                {scoreInfo.data.reasons.map((r, i) => (
+                                  <li key={i}>{r}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* Actions Bar */}
+                          <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 items-center justify-between">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleScoreMatch(job)}
+                                disabled={scoreInfo?.loading}
+                                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-medium transition-colors"
+                              >
+                                {scoreInfo?.loading ? 'Scoring...' : '🎯 Calculate Resume Score'}
+                              </button>
+                              <button
+                                onClick={() => handleGenerateCoverLetter(job)}
+                                disabled={activeCoverLetter.id === job.id && activeCoverLetter.loading}
+                                className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium transition-colors"
+                              >
+                                {activeCoverLetter.id === job.id && activeCoverLetter.loading ? 'Drafting...' : '✍️ 1-Click AI Cover Letter'}
+                              </button>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSaveToPipeline(job, 'saved')}
+                                className="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-xs font-medium transition-colors"
+                              >
+                                📌 Save
+                              </button>
+                              <button
+                                onClick={() => handleSaveToPipeline(job, 'applied')}
+                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-medium transition-colors"
+                              >
+                                ✓ Mark Applied
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Cover Letter Accordion */}
+                          {activeCoverLetter.id === job.id && activeCoverLetter.text && (
+                            <div className="mt-3 p-4 bg-indigo-50/70 border border-indigo-200 rounded-lg space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-bold text-indigo-900">Tailored Cover Letter / Cold Email Draft</span>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(activeCoverLetter.text);
+                                  }}
+                                  className="text-xs text-indigo-700 hover:text-indigo-900 font-semibold"
+                                >
+                                  📋 Copy Text
+                                </button>
+                              </div>
+                              <textarea
+                                readOnly
+                                value={activeCoverLetter.text}
+                                rows={6}
+                                className="w-full text-xs font-mono p-3 bg-white border border-indigo-100 rounded-md focus:outline-none text-slate-800"
+                              />
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {scoreInfo?.data && (
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            scoreInfo.data.score >= 0.8 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            Score: {Math.round(scoreInfo.data.score * 100)}%
-                          </span>
-                        )}
-                        <a
-                          href={job.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold transition-colors"
-                        >
-                          View Original Link ↗
-                        </a>
-                      </div>
-                    </div>
+                      );
+                    })}
 
-                    {job.description && (
-                      <p className="text-xs text-slate-600 line-clamp-2">{job.description}</p>
-                    )}
+                    {/* Pagination Controls */}
+                    {jobs.length > pageSize && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 bg-white p-4 rounded-xl shadow-sm">
+                        <div className="text-xs text-slate-500 font-medium">
+                          Showing <span className="font-bold text-slate-800">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+                          <span className="font-bold text-slate-800">{Math.min(currentPage * pageSize, jobs.length)}</span> of{' '}
+                          <span className="font-bold text-slate-800">{jobs.length}</span> opportunities
+                        </div>
 
-                    {/* Match Reasons */}
-                    {scoreInfo?.data?.reasons && (
-                      <div className="p-3 bg-slate-50 rounded-lg text-xs text-slate-700 space-y-1">
-                        <span className="font-semibold text-slate-800">Match Analysis:</span>
-                        <ul className="list-disc list-inside space-y-0.5 text-slate-600">
-                          {scoreInfo.data.reasons.map((r, i) => (
-                            <li key={i}>{r}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Actions Bar */}
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 items-center justify-between">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleScoreMatch(job)}
-                          disabled={scoreInfo?.loading}
-                          className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-medium transition-colors"
-                        >
-                          {scoreInfo?.loading ? 'Scoring...' : '🎯 Calculate Resume Score'}
-                        </button>
-                        <button
-                          onClick={() => handleGenerateCoverLetter(job)}
-                          disabled={activeCoverLetter.id === job.id && activeCoverLetter.loading}
-                          className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium transition-colors"
-                        >
-                          {activeCoverLetter.id === job.id && activeCoverLetter.loading ? 'Drafting...' : '✍️ 1-Click AI Cover Letter'}
-                        </button>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleSaveToPipeline(job, 'saved')}
-                          className="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-xs font-medium transition-colors"
-                        >
-                          📌 Save
-                        </button>
-                        <button
-                          onClick={() => handleSaveToPipeline(job, 'applied')}
-                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-medium transition-colors"
-                        >
-                          ✓ Mark Applied
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Cover Letter Accordion */}
-                    {activeCoverLetter.id === job.id && activeCoverLetter.text && (
-                      <div className="mt-3 p-4 bg-indigo-50/70 border border-indigo-200 rounded-lg space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-indigo-900">Tailored Cover Letter / Cold Email Draft</span>
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(activeCoverLetter.text);
-                              /* toast: copied */
+                              setCurrentPage((p) => Math.max(p - 1, 1));
+                              window.scrollTo({ top: 400, behavior: 'smooth' });
                             }}
-                            className="text-xs text-indigo-700 hover:text-indigo-900 font-semibold"
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
                           >
-                            📋 Copy Text
+                            &larr; Previous 10
+                          </button>
+
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                              <button
+                                key={pageNum}
+                                onClick={() => {
+                                  setCurrentPage(pageNum);
+                                  window.scrollTo({ top: 400, behavior: 'smooth' });
+                                }}
+                                className={`w-8 h-8 rounded-lg text-xs font-bold transition flex items-center justify-center ${
+                                  currentPage === pageNum
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            ))}
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setCurrentPage((p) => Math.min(p + 1, totalPages));
+                              window.scrollTo({ top: 400, behavior: 'smooth' });
+                            }}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1"
+                          >
+                            Next 10 &rarr;
                           </button>
                         </div>
-                        <textarea
-                          readOnly
-                          value={activeCoverLetter.text}
-                          rows={6}
-                          className="w-full text-xs font-mono p-3 bg-white border border-indigo-100 rounded-md focus:outline-none text-slate-800"
-                        />
                       </div>
                     )}
-                  </div>
+                  </>
                 );
-              })}
+              })()}
             </div>
           </div>
         )}

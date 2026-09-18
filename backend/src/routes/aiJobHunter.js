@@ -8,8 +8,7 @@ const cheerio = require('cheerio');
 const crypto = require('crypto');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
-
-const { fetchFormalJobs } = require('../services/linkedinCrawler');
+const Parser = require('rss-parser');
 const sendEmail = require('../utils/sendEmail');
 const JobAlert = require('../models/JobAlert');
 const User = require('../models/User');
@@ -49,12 +48,22 @@ async function parseDocumentText(file) {
   }
 }
 
-// Helper function to fetch real-time jobs from live open global feeds
-async function fetchRealtimeJobs({ keywords = 'Software Engineer', location = 'Remote', timeFilter = 'any', maxResults = 30 }) {
+// Helper function to fetch real-time jobs from live open global internet sources & company career boards (excluding LinkedIn)
+async function fetchRealtimeJobs({ keywords = 'Software Engineer', location = 'Remote', timeFilter = 'any', maxResults = 100 }) {
   const isRemote = !location || location.toLowerCase().includes('remote') || location.toLowerCase().includes('worldwide');
   const results = [];
   const seenUrls = new Set();
   const queryLower = (keywords || '').toLowerCase().trim();
+  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+
+  // Helper matcher
+  const matchesQuery = (text) => {
+    if (!queryLower || queryLower === 'software engineer') return true;
+    const lower = (text || '').toLowerCase();
+    if (lower.includes(queryLower)) return true;
+    if (queryWords.length > 0 && queryWords.some(w => lower.includes(w))) return true;
+    return false;
+  };
 
   // Calculate cutoff timestamp based on timeFilter ('24h', '7d', '30d', 'any')
   let cutoffDate = null;
@@ -67,139 +76,154 @@ async function fetchRealtimeJobs({ keywords = 'Software Engineer', location = 'R
     cutoffDate = new Date(now - 30 * 24 * 60 * 60 * 1000);
   }
 
-  // 1. Fetch live vacancies from LinkedIn Jobs Guest API
-  try {
-    const linkedinJobs = await fetchFormalJobs({
-      keywords,
-      location: location || 'Worldwide',
-      isRemote,
-      offset: 0
-    });
+  // Helper to add item safely
+  const addJob = (job) => {
+    if (!job || !job.url || seenUrls.has(job.url)) return;
+    // Strictly filter out any LinkedIn URLs
+    if (job.url.toLowerCase().includes('linkedin.com')) return;
+    if (job.source && job.source.toLowerCase().includes('linkedin')) return;
 
-    if (Array.isArray(linkedinJobs)) {
-      for (const j of linkedinJobs) {
-        if (j.url && !seenUrls.has(j.url)) {
-          seenUrls.add(j.url);
-          results.push({
-            id: `li_${j.jobId || crypto.createHash('md5').update(j.url).digest('hex')}`,
-            title: j.title,
-            company: j.company,
-            location: j.location,
+    if (cutoffDate && job.publishedDate && job.publishedDate < cutoffDate) return;
+
+    seenUrls.add(job.url);
+    results.push(job);
+  };
+
+  const tasks = [];
+
+  // 1. We Work Remotely Feeds (Multiple Engineering & Tech categories)
+  tasks.push((async () => {
+    const wwrFeeds = [
+      'https://weworkremotely.com/categories/remote-programming-jobs.rss',
+      'https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss',
+      'https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss',
+      'https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss',
+      'https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss'
+    ];
+    const rssParser = new Parser({ timeout: 8000 });
+    await Promise.allSettled(wwrFeeds.map(async (feedUrl) => {
+      try {
+        const feed = await rssParser.parseURL(feedUrl);
+        for (const item of (feed.items || [])) {
+          if (!item.link) continue;
+          const combined = `${item.title || ''} ${item.contentSnippet || ''}`;
+          if (!matchesQuery(combined)) continue;
+
+          let company = 'WeWorkRemotely Employer';
+          let title = item.title || 'Remote Position';
+          if (title.includes(':')) {
+            const parts = title.split(':');
+            company = parts[0].trim();
+            title = parts.slice(1).join(':').trim();
+          }
+
+          const pubDate = item.pubDate ? new Date(item.pubDate) : null;
+          addJob({
+            id: `wwr_${crypto.createHash('md5').update(item.link).digest('hex')}`,
+            title,
+            company,
+            location: 'Worldwide Remote',
+            url: item.link,
+            source: 'WeWorkRemotely',
+            description: (item.contentSnippet || title).replace(/<[^>]*>?/gm, '').slice(0, 350),
+            is_remote: true,
+            publishedDate: pubDate || new Date()
+          });
+        }
+      } catch (err) {
+        // Feed failed or timed out
+      }
+    }));
+  })());
+
+  // 2. Jobicy Global Remote API
+  tasks.push((async () => {
+    try {
+      const jobicyRes = await axios.get('https://jobicy.com/api/v2/remote-jobs?count=50', {
+        headers: { 'User-Agent': 'NotifyMeApp/2.0' },
+        timeout: 8000
+      });
+
+      if (jobicyRes.data && Array.isArray(jobicyRes.data.jobs)) {
+        for (const j of jobicyRes.data.jobs) {
+          if (!j || !j.url) continue;
+          const fullText = `${j.jobTitle || ''} ${j.companyName || ''} ${(j.jobIndustry || []).join(' ')} ${j.jobExcerpt || ''}`;
+          if (!matchesQuery(fullText)) continue;
+
+          const pubDate = j.pubDate ? new Date(j.pubDate) : null;
+          addJob({
+            id: `jobicy_${j.id}`,
+            title: j.jobTitle,
+            company: j.companyName || 'Verified Employer',
+            location: j.jobGeo || 'Remote / Worldwide',
             url: j.url,
-            source: 'LinkedIn Jobs Live',
-            description: `${j.title} at ${j.company} in ${j.location}. Posted: ${j.postedTime || 'Recently'}.`,
-            is_remote: j.isRemote,
-            publishedDate: new Date() // LinkedIn guest endpoint does not provide ISO timestamp
+            source: 'Jobicy Global',
+            description: (j.jobExcerpt || j.jobTitle || '').replace(/<[^>]*>?/gm, '').slice(0, 350),
+            is_remote: true,
+            publishedDate: pubDate || new Date()
           });
         }
       }
+    } catch (err) {
+      console.warn('[RealtimeJobs] Jobicy fetch error:', err.message);
     }
-  } catch (err) {
-    console.warn('[RealtimeJobs] LinkedIn Guest API failed, continuing with secondary sources:', err.message);
-  }
+  })());
 
-  // 2. Fetch from Jobicy Global Remote API
-  try {
-    const jobicyRes = await axios.get('https://jobicy.com/api/v2/remote-jobs?count=25', {
-      headers: { 'User-Agent': 'NotifyMeApp/2.0' },
-      timeout: 8000
-    });
+  // 3. Remotive Global Tech API
+  tasks.push((async () => {
+    try {
+      const remotiveUrl = queryLower
+        ? `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(keywords)}&limit=40`
+        : 'https://remotive.com/api/remote-jobs?limit=40';
 
-    if (jobicyRes.data && Array.isArray(jobicyRes.data.jobs)) {
-      for (const j of jobicyRes.data.jobs) {
-        if (!j || !j.url || seenUrls.has(j.url)) continue;
+      const remotiveRes = await axios.get(remotiveUrl, {
+        headers: { 'User-Agent': 'NotifyMeApp/2.0' },
+        timeout: 8000
+      });
 
-        const pubDate = j.pubDate ? new Date(j.pubDate) : null;
-        if (cutoffDate && pubDate && pubDate < cutoffDate) continue;
-
-        const fullText = `${j.jobTitle || ''} ${j.companyName || ''} ${(j.jobIndustry || []).join(' ')} ${j.jobExcerpt || ''}`.toLowerCase();
-        if (queryLower && queryLower !== 'software engineer' && !fullText.includes(queryLower)) {
-          // Check individual keywords
-          const terms = queryLower.split(/\s+/).filter(Boolean);
-          const hasMatch = terms.some(term => fullText.includes(term));
-          if (!hasMatch) continue;
+      if (remotiveRes.data && Array.isArray(remotiveRes.data.jobs)) {
+        for (const j of remotiveRes.data.jobs) {
+          if (!j || !j.url) continue;
+          const pubDate = j.publication_date ? new Date(j.publication_date) : null;
+          addJob({
+            id: `remotive_${j.id}`,
+            title: j.title,
+            company: j.company_name || 'Verified Employer',
+            location: j.candidate_required_location || 'Worldwide Remote',
+            url: j.url,
+            source: 'Remotive Global',
+            description: (j.description || j.title || '').replace(/<[^>]*>?/gm, '').slice(0, 350),
+            is_remote: true,
+            publishedDate: pubDate || new Date()
+          });
         }
-
-        seenUrls.add(j.url);
-        results.push({
-          id: `jobicy_${j.id}`,
-          title: j.jobTitle,
-          company: j.companyName || 'Verified Employer',
-          location: j.jobGeo || 'Remote / Worldwide',
-          url: j.url,
-          source: 'Jobicy Global',
-          description: (j.jobExcerpt || j.jobTitle || '').replace(/<[^>]*>?/gm, '').slice(0, 350),
-          is_remote: true,
-          publishedDate: pubDate || new Date()
-        });
       }
+    } catch (err) {
+      console.warn('[RealtimeJobs] Remotive fetch error:', err.message);
     }
-  } catch (err) {
-    console.warn('[RealtimeJobs] Jobicy fetch error:', err.message);
-  }
+  })());
 
-  // 3. Fetch from Remotive Global Tech API
-  try {
-    const remotiveUrl = queryLower 
-      ? `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(keywords)}&limit=25`
-      : 'https://remotive.com/api/remote-jobs?limit=25';
+  // 4. RemoteOK Realtime API
+  tasks.push((async () => {
+    try {
+      const remoteOkRes = await axios.get('https://remoteok.com/api', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        timeout: 8000
+      });
 
-    const remotiveRes = await axios.get(remotiveUrl, {
-      headers: { 'User-Agent': 'NotifyMeApp/2.0' },
-      timeout: 8000
-    });
+      if (Array.isArray(remoteOkRes.data)) {
+        const filtered = remoteOkRes.data
+          .filter(item => item && item.position && item.company)
+          .filter(item => {
+            const combined = `${item.position || ''} ${(item.tags || []).join(' ')}`;
+            return matchesQuery(combined);
+          })
+          .slice(0, 30);
 
-    if (remotiveRes.data && Array.isArray(remotiveRes.data.jobs)) {
-      for (const j of remotiveRes.data.jobs) {
-        if (!j || !j.url || seenUrls.has(j.url)) continue;
-
-        const pubDate = j.publication_date ? new Date(j.publication_date) : null;
-        if (cutoffDate && pubDate && pubDate < cutoffDate) continue;
-
-        seenUrls.add(j.url);
-        results.push({
-          id: `remotive_${j.id}`,
-          title: j.title,
-          company: j.company_name || 'Verified Employer',
-          location: j.candidate_required_location || 'Worldwide Remote',
-          url: j.url,
-          source: 'Remotive Global',
-          description: (j.description || j.title || '').replace(/<[^>]*>?/gm, '').slice(0, 350),
-          is_remote: true,
-          publishedDate: pubDate || new Date()
-        });
-      }
-    }
-  } catch (err) {
-    console.warn('[RealtimeJobs] Remotive fetch error:', err.message);
-  }
-
-  // 4. Augment with RemoteOK Live API
-  try {
-    const remoteOkRes = await axios.get('https://remoteok.com/api', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      timeout: 8000
-    });
-
-    if (Array.isArray(remoteOkRes.data)) {
-      const filtered = remoteOkRes.data
-        .filter(item => item && item.position && item.company)
-        .filter(item => {
-          if (!queryLower || queryLower === 'software engineer') return true;
-          const pos = (item.position || '').toLowerCase();
-          const tags = (item.tags || []).join(' ').toLowerCase();
-          return pos.includes(queryLower) || tags.includes(queryLower);
-        })
-        .slice(0, 20);
-
-      for (const item of filtered) {
-        const itemUrl = item.url ? (item.url.startsWith('http') ? item.url : `https://remoteok.com${item.url}`) : `https://remoteok.com/remote-jobs/${item.id}`;
-        if (!seenUrls.has(itemUrl)) {
+        for (const item of filtered) {
+          const itemUrl = item.url ? (item.url.startsWith('http') ? item.url : `https://remoteok.com${item.url}`) : `https://remoteok.com/remote-jobs/${item.id}`;
           const pubDate = item.date ? new Date(item.date) : null;
-          if (cutoffDate && pubDate && pubDate < cutoffDate) continue;
-
-          seenUrls.add(itemUrl);
-          results.push({
+          addJob({
             id: `rok_${item.id}`,
             title: item.position,
             company: item.company,
@@ -212,10 +236,62 @@ async function fetchRealtimeJobs({ keywords = 'Software Engineer', location = 'R
           });
         }
       }
+    } catch (err) {
+      console.warn('[RealtimeJobs] RemoteOK fetch error:', err.message);
     }
-  } catch (err) {
-    console.warn('[RealtimeJobs] RemoteOK fetch error:', err.message);
-  }
+  })());
+
+  // 5. Direct Company Career Pages via Greenhouse ATS
+  tasks.push((async () => {
+    const techCompanies = [
+      { id: 'cloudflare', name: 'Cloudflare' },
+      { id: 'stripe', name: 'Stripe' },
+      { id: 'gitlab', name: 'GitLab' },
+      { id: 'canonical', name: 'Canonical' },
+      { id: 'elastic', name: 'Elastic' },
+      { id: 'airbnb', name: 'Airbnb' },
+      { id: 'automattic', name: 'Automattic' },
+      { id: 'datadog', name: 'Datadog' },
+      { id: 'mongodb', name: 'MongoDB' },
+      { id: 'twitch', name: 'Twitch' },
+      { id: 'figma', name: 'Figma' }
+    ];
+
+    await Promise.allSettled(techCompanies.map(async (company) => {
+      try {
+        const res = await axios.get(`https://boards-api.greenhouse.io/v1/boards/${company.id}/jobs`, {
+          timeout: 6000
+        });
+        const companyJobs = res.data?.jobs || [];
+        for (const j of companyJobs) {
+          if (!j.absolute_url) continue;
+          const combined = `${j.title || ''} ${(j.departments || []).map(d => d.name).join(' ')}`;
+          if (!matchesQuery(combined)) continue;
+
+          const pubDate = j.updated_at ? new Date(j.updated_at) : null;
+          addJob({
+            id: `gh_${company.id}_${j.id}`,
+            title: j.title,
+            company: company.name,
+            location: j.location?.name || 'Remote / Multiple Locations',
+            url: j.absolute_url,
+            source: `${company.name} Careers`,
+            description: `Direct opening for ${j.title} at ${company.name}. Official career portal application.`,
+            is_remote: isRemote,
+            publishedDate: pubDate || new Date()
+          });
+        }
+      } catch (err) {
+        // Individual company fetch error, continue
+      }
+    }));
+  })());
+
+  // Wait for all multi-source collectors
+  await Promise.allSettled(tasks);
+
+  // Sort newest first if publishedDate exists
+  results.sort((a, b) => new Date(b.publishedDate || 0) - new Date(a.publishedDate || 0));
 
   return results.slice(0, maxResults);
 }
@@ -240,7 +316,7 @@ async function callGroqAPI(prompt, apiKey, format = 'json_object', temperature =
 
 // GET /api/job-hunter/version
 router.get('/version', (req, res) => {
-  res.json({ service: 'ai-job-hunter', runtime: 'node-native-v2', buildTime: '2026-09-16' });
+  res.json({ service: 'ai-job-hunter', runtime: 'node-native-v2', buildTime: '2026-09-18' });
 });
 
 // POST /api/job-hunter/search
@@ -255,21 +331,45 @@ router.post('/search', optionalAuth, async (req, res) => {
         keywords: keywords || 'Software Engineer',
         location: location || 'Remote',
         timeFilter: timeFilter || 'any',
-        maxResults: max_results || 30
+        maxResults: max_results || 100
       });
 
-      // If live scraping returned zero due to strict filters or rate limits, provide helpful contextual items
+      // If live scraping returned zero due to very specific filters, provide direct company career portals
       if (!jobs || jobs.length === 0) {
+        const fallbackSearchTerm = keywords || 'Software Engineer';
         jobs = [
           {
-            id: `li_search_${Date.now()}`,
-            title: `${keywords || 'Software Engineer'}`,
-            company: 'View Live Listings',
+            id: `direct_wwr_${Date.now()}`,
+            title: `${fallbackSearchTerm} Openings`,
+            company: 'We Work Remotely Hub',
             location: location || 'Remote',
-            url: `https://www.linkedin.com/jobs/search?keywords=${encodeURIComponent(keywords || 'Software Engineer')}&location=${encodeURIComponent(location || 'Worldwide')}`,
-            source: 'LinkedIn Portal',
-            description: `Click to view active real-time job openings for ${keywords || 'Software Engineer'} on LinkedIn.`,
-            is_remote: true
+            url: `https://weworkremotely.com/remote-jobs/search?term=${encodeURIComponent(fallbackSearchTerm)}`,
+            source: 'WeWorkRemotely',
+            description: `Explore live curated remote openings for "${fallbackSearchTerm}" across global tech companies.`,
+            is_remote: true,
+            publishedDate: new Date()
+          },
+          {
+            id: `direct_remoteok_${Date.now()}`,
+            title: `${fallbackSearchTerm} Verified Roles`,
+            company: 'RemoteOK Network',
+            location: location || 'Remote',
+            url: `https://remoteok.com/remote-${encodeURIComponent(fallbackSearchTerm.replace(/\s+/g, '-').toLowerCase())}-jobs`,
+            source: 'RemoteOK Realtime',
+            description: `Direct global vacancies and tech startup opportunities for "${fallbackSearchTerm}".`,
+            is_remote: true,
+            publishedDate: new Date()
+          },
+          {
+            id: `direct_jobicy_${Date.now()}`,
+            title: `${fallbackSearchTerm} Positions`,
+            company: 'Jobicy Global Remote',
+            location: location || 'Worldwide',
+            url: `https://jobicy.com/jobs?s=${encodeURIComponent(fallbackSearchTerm)}`,
+            source: 'Jobicy Global',
+            description: `Live verified vacancies from companies worldwide hiring remote talent.`,
+            is_remote: true,
+            publishedDate: new Date()
           }
         ];
       }
@@ -563,7 +663,7 @@ router.post('/alert-reminder', optionalAuth, async (req, res) => {
           </td>
         </tr>
       `).join('')
-      : `<tr><td style="padding: 16px; color: #64748b; font-size: 14px;">We have registered your alert. As soon as new real-time vacancies matching <strong>"${cleanKeywords}"</strong> are published across LinkedIn, Remotive, Jobicy, and RemoteOK, we will email them to you directly!</td></tr>`;
+      : `<tr><td style="padding: 16px; color: #64748b; font-size: 14px;">We have registered your alert. As soon as new real-time vacancies matching <strong>"${cleanKeywords}"</strong> are published across WeWorkRemotely, Remotive, Jobicy, RemoteOK, and direct Company Career Portals, we will email them to you directly!</td></tr>`;
 
     const emailHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
