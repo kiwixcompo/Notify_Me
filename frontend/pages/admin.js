@@ -22,8 +22,18 @@ export default function AdminUsers() {
   const [deletingId, setDeletingId] = useState(null);
 
   // Global AI Config states
-  const [aiConfig, setAiConfig] = useState({ configured: false, masked: '', source: 'none' });
+  const [aiConfig, setAiConfig] = useState({
+    configured: false,
+    masked: '',
+    source: 'none',
+    gemini_configured: false,
+    gemini_masked: '',
+    serper_configured: false,
+    serper_masked: ''
+  });
   const [inputGroqKey, setInputGroqKey] = useState('');
+  const [inputGeminiKey, setInputGeminiKey] = useState('');
+  const [inputSerperKey, setInputSerperKey] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
   const [testingKey, setTestingKey] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -40,7 +50,11 @@ export default function AdminUsers() {
         setAiConfig({
           configured: res.data.config.groq_api_key_configured,
           masked: res.data.config.groq_api_key_masked,
-          source: res.data.config.groq_api_key_source
+          source: res.data.config.groq_api_key_source,
+          gemini_configured: res.data.config.gemini_api_key_configured,
+          gemini_masked: res.data.config.gemini_api_key_masked,
+          serper_configured: res.data.config.serper_api_key_configured,
+          serper_masked: res.data.config.serper_api_key_masked
         });
       }
     } catch (err) {
@@ -50,19 +64,24 @@ export default function AdminUsers() {
 
   const handleSaveConfig = async (e) => {
     e.preventDefault();
-    if (!inputGroqKey.trim()) {
-      alert('Please enter a Groq API key.');
+    if (!inputGroqKey.trim() && !inputGeminiKey.trim() && !inputSerperKey.trim()) {
+      alert('Please enter at least one API key to save.');
       return;
     }
     setSavingConfig(true);
     setError('');
     setSuccess('');
     try {
-      const res = await axios.put(API_BASE + '/api/admin/config', {
-        groq_api_key: inputGroqKey.trim()
-      }, { headers: getHeaders() });
-      setSuccess(res.data.message || 'Universal Groq API key updated successfully.');
+      const payload = {};
+      if (inputGroqKey.trim()) payload.groq_api_key = inputGroqKey.trim();
+      if (inputGeminiKey.trim()) payload.gemini_api_key = inputGeminiKey.trim();
+      if (inputSerperKey.trim()) payload.serper_api_key = inputSerperKey.trim();
+
+      const res = await axios.put(API_BASE + '/api/admin/config', payload, { headers: getHeaders() });
+      setSuccess(res.data.message || 'Universal AI & Search API keys updated successfully.');
       setInputGroqKey('');
+      setInputGeminiKey('');
+      setInputSerperKey('');
       fetchConfig();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update system configuration.');
@@ -249,51 +268,94 @@ export default function AdminUsers() {
         )}
 
         {/* Global AI & System Configuration */}
-        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>🤖</span> Universal AI Configuration (Groq API Key)
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Set the universal Groq API key once here. All regular users can calculate resume scores and generate cover letters without needing to provide their own key.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                aiConfig.configured ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-              }`}>
-                {aiConfig.configured ? `Active (${aiConfig.masked})` : 'Not Configured'}
-              </span>
-            </div>
+        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>🤖</span> Global AI &amp; Intelligence Search Configuration
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Set universal API credentials once here. All users can run Resume Scoring, Cover Letter generation, and automated 4-stage Deep Job Research (Google Dorks + Gemini Dossiers) without needing their own keys.
+            </p>
           </div>
 
-          <form onSubmit={handleSaveConfig} className="space-y-3">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="password"
-                value={inputGroqKey}
-                onChange={(e) => setInputGroqKey(e.target.value)}
-                placeholder="Enter new Groq API Key (gsk_...)"
-                className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
-              />
-              <div className="flex gap-2">
+          <form onSubmit={handleSaveConfig} className="space-y-4">
+            {/* 1. Groq Key */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-slate-700">1. Groq API Key (Resume Scorer &amp; Cover Letters)</label>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  aiConfig.configured ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {aiConfig.configured ? `Active (${aiConfig.masked})` : 'Not Configured'}
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="password"
+                  value={inputGroqKey}
+                  onChange={(e) => setInputGroqKey(e.target.value)}
+                  placeholder="Enter Groq API Key (gsk_...)"
+                  className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                />
                 <button
                   type="button"
                   onClick={handleTestGroqKey}
                   disabled={testingKey}
                   className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition disabled:opacity-50 min-h-[42px]"
                 >
-                  {testingKey ? 'Testing...' : '⚡ Test Key'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingConfig || !inputGroqKey.trim()}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow disabled:opacity-50 min-h-[42px]"
-                >
-                  {savingConfig ? 'Saving...' : '💾 Save Universal Key'}
+                  {testingKey ? 'Testing...' : '⚡ Test Groq'}
                 </button>
               </div>
+            </div>
+
+            {/* 2. Google Gemini API Key */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-slate-700">2. Google Gemini API Key (Deep Job Research Synthesizer)</label>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  aiConfig.gemini_configured ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {aiConfig.gemini_configured ? `Active (${aiConfig.gemini_masked})` : 'Optional (Groq fallback active)'}
+                </span>
+              </div>
+              <input
+                type="password"
+                value={inputGeminiKey}
+                onChange={(e) => setInputGeminiKey(e.target.value)}
+                placeholder="Enter Google Gemini API Key (AIzaSy...)"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+              />
+              <p className="text-[11px] text-slate-400">Powers Gemini 2.5 Flash for structuring recruiters, disambiguation, and pay estimates.</p>
+            </div>
+
+            {/* 3. Serper.dev Google Search Key */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-slate-700">3. Serper.dev API Key (Google Dorks for Recruiters &amp; Portals)</label>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  aiConfig.serper_configured ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {aiConfig.serper_configured ? `Active (${aiConfig.serper_masked})` : 'DuckDuckGo Fallback Active'}
+                </span>
+              </div>
+              <input
+                type="password"
+                value={inputSerperKey}
+                onChange={(e) => setInputSerperKey(e.target.value)}
+                placeholder="Enter Serper.dev API Key (2,500 free searches)"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+              />
+              <p className="text-[11px] text-slate-400">Used to execute targeted Google dorks for LinkedIn recruiters and official career portals.</p>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={savingConfig || (!inputGroqKey.trim() && !inputGeminiKey.trim() && !inputSerperKey.trim())}
+                className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow disabled:opacity-50 min-h-[44px]"
+              >
+                {savingConfig ? 'Saving Settings...' : '💾 Save Intelligence Keys'}
+              </button>
             </div>
 
             {testResult && (

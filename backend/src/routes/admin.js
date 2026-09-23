@@ -187,27 +187,42 @@ router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // GET /api/admin/config - Get system configuration settings (e.g. GROQ_API_KEY status)
+// GET /api/admin/config - Get system configuration settings (GROQ, GEMINI, SERPER)
 router.get('/config', requireAuth, requireAdmin, async (req, res) => {
   try {
     const SystemConfig = require('../models/SystemConfig');
-    const groqConfig = await SystemConfig.findOne({ key: 'GROQ_API_KEY' });
-    const groqValue = (groqConfig && groqConfig.value) || process.env.GROQ_API_KEY || '';
+    
+    // Mask helper
+    const getMask = (val) => {
+      if (!val) return '';
+      if (val.length > 8) return val.substring(0, 4) + '...' + val.substring(val.length - 4);
+      return '••••••••';
+    };
 
-    let maskedKey = '';
-    if (groqValue) {
-      if (groqValue.length > 8) {
-        maskedKey = groqValue.substring(0, 4) + '...' + groqValue.substring(groqValue.length - 4);
-      } else {
-        maskedKey = '••••••••';
-      }
-    }
+    const [groqConfig, geminiConfig, serperConfig] = await Promise.all([
+      SystemConfig.findOne({ key: 'GROQ_API_KEY' }),
+      SystemConfig.findOne({ key: 'GEMINI_API_KEY' }),
+      SystemConfig.findOne({ key: 'SERPER_API_KEY' })
+    ]);
+
+    const groqVal = groqConfig?.value || process.env.GROQ_API_KEY || '';
+    const geminiVal = geminiConfig?.value || process.env.GEMINI_API_KEY || '';
+    const serperVal = serperConfig?.value || process.env.SERPER_API_KEY || '';
 
     res.json({
       success: true,
       config: {
-        groq_api_key_configured: Boolean(groqValue),
-        groq_api_key_masked: maskedKey,
-        groq_api_key_source: groqConfig?.value ? 'database' : (process.env.GROQ_API_KEY ? 'environment' : 'none')
+        groq_api_key_configured: Boolean(groqVal),
+        groq_api_key_masked: getMask(groqVal),
+        groq_api_key_source: groqConfig?.value ? 'database' : (process.env.GROQ_API_KEY ? 'environment' : 'none'),
+
+        gemini_api_key_configured: Boolean(geminiVal),
+        gemini_api_key_masked: getMask(geminiVal),
+        gemini_api_key_source: geminiConfig?.value ? 'database' : (process.env.GEMINI_API_KEY ? 'environment' : 'none'),
+
+        serper_api_key_configured: Boolean(serperVal),
+        serper_api_key_masked: getMask(serperVal),
+        serper_api_key_source: serperConfig?.value ? 'database' : (process.env.SERPER_API_KEY ? 'environment' : 'none')
       }
     });
   } catch (err) {
@@ -220,22 +235,56 @@ router.get('/config', requireAuth, requireAdmin, async (req, res) => {
 router.put('/config', requireAuth, requireAdmin, async (req, res) => {
   try {
     const SystemConfig = require('../models/SystemConfig');
-    const { groq_api_key } = req.body;
+    const { groq_api_key, gemini_api_key, serper_api_key } = req.body;
+
+    const updates = [];
 
     if (groq_api_key !== undefined) {
-      const trimmed = groq_api_key.trim();
-      await SystemConfig.findOneAndUpdate(
-        { key: 'GROQ_API_KEY' },
-        { 
-          key: 'GROQ_API_KEY', 
-          value: trimmed, 
-          description: 'Universal Groq API key for system-wide AI features',
-          updatedBy: req.userId 
-        },
-        { upsert: true, new: true }
+      updates.push(
+        SystemConfig.findOneAndUpdate(
+          { key: 'GROQ_API_KEY' },
+          { 
+            key: 'GROQ_API_KEY', 
+            value: groq_api_key.trim(), 
+            description: 'Universal Groq API key for system-wide AI features',
+            updatedBy: req.userId 
+          },
+          { upsert: true, new: true }
+        )
       );
     }
 
+    if (gemini_api_key !== undefined) {
+      updates.push(
+        SystemConfig.findOneAndUpdate(
+          { key: 'GEMINI_API_KEY' },
+          { 
+            key: 'GEMINI_API_KEY', 
+            value: gemini_api_key.trim(), 
+            description: 'Universal Gemini API key for Deep Job Research & intelligence synthesis',
+            updatedBy: req.userId 
+          },
+          { upsert: true, new: true }
+        )
+      );
+    }
+
+    if (serper_api_key !== undefined) {
+      updates.push(
+        SystemConfig.findOneAndUpdate(
+          { key: 'SERPER_API_KEY' },
+          { 
+            key: 'SERPER_API_KEY', 
+            value: serper_api_key.trim(), 
+            description: 'Universal Serper.dev Google Search API key for Multi-Vector intelligence dorking',
+            updatedBy: req.userId 
+          },
+          { upsert: true, new: true }
+        )
+      );
+    }
+
+    await Promise.all(updates);
     res.json({ success: true, message: 'System configuration updated successfully.' });
   } catch (err) {
     console.error('Admin update config error:', err);

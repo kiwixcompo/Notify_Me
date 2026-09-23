@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Layout from '../components/Layout';
+import JobResearchModal from '../components/JobResearchModal';
 import { getApiBase } from '../utils/apiBase';
 
 const API_BASE = getApiBase();
@@ -28,6 +29,43 @@ export default function AIJobHunter() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [settingReminder, setSettingReminder] = useState(false);
   const [reminderStatus, setReminderStatus] = useState(null); // { success: bool, message: str }
+
+  // Deep Job Research states
+  const [researchModalOpen, setResearchModalOpen] = useState(false);
+  const [currentResearchJob, setCurrentResearchJob] = useState(null);
+  const [researchData, setResearchData] = useState(null);
+  const [researchLoading, setResearchLoading] = useState(false);
+  const [researchError, setResearchError] = useState('');
+  const [researchLoadingId, setResearchLoadingId] = useState(null);
+
+  const handleDeepResearch = async (job, forceRefresh = false) => {
+    setCurrentResearchJob(job);
+    setResearchModalOpen(true);
+    setResearchLoading(true);
+    setResearchError('');
+    setResearchLoadingId(job.id);
+
+    try {
+      const res = await axios.post(`${API_BASE}/api/job-hunter/research/${job.id}`, {
+        title: job.title,
+        company: job.company,
+        url: job.url,
+        description: job.description,
+        location: job.location,
+        forceRefresh
+      }, { headers: getHeaders() });
+
+      setResearchData(res.data);
+    } catch (err) {
+      console.error('Job research error:', err);
+      setResearchError(
+        err.response?.data?.error || 'Failed to complete deep research. Please try again.'
+      );
+    } finally {
+      setResearchLoading(false);
+      setResearchLoadingId(null);
+    }
+  };
 
   const handleTestKey = async () => {
     setTestKeyStatus({ loading: true });
@@ -560,7 +598,25 @@ export default function AIJobHunter() {
 
                           {/* Actions Bar */}
                           <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 items-center justify-between">
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => handleDeepResearch(job)}
+                                disabled={researchLoadingId === job.id}
+                                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                                title="Run automated 4-stage company & recruiter research"
+                              >
+                                {researchLoadingId === job.id ? (
+                                  <>
+                                    <span className="animate-spin text-[10px]">⚡</span>
+                                    <span>Researching...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>🔬</span>
+                                    <span>Deep Research</span>
+                                  </>
+                                )}
+                              </button>
                               <button
                                 onClick={() => handleScoreMatch(job)}
                                 disabled={scoreInfo?.loading}
@@ -785,9 +841,18 @@ export default function AIJobHunter() {
                               <option value="offer">Offer</option>
                               <option value="rejected">Rejected</option>
                             </select>
-                            <a href={job.link} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
-                              Link ↗
-                            </a>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleDeepResearch({ id: job.wwrJobId, title: job.title, company: job.company, url: job.link, description: job.description })}
+                                className="text-indigo-600 hover:text-indigo-800 font-semibold"
+                                title="Run Deep Job Research"
+                              >
+                                🔬 Research
+                              </button>
+                              <a href={job.link} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                                Link ↗
+                              </a>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -801,6 +866,17 @@ export default function AIJobHunter() {
             </div>
           </div>
         )}
+
+        {/* Deep Job Research Dossier Modal */}
+        <JobResearchModal
+          isOpen={researchModalOpen}
+          onClose={() => setResearchModalOpen(false)}
+          job={currentResearchJob}
+          researchData={researchData}
+          loading={researchLoading}
+          error={researchError}
+          onRefresh={() => currentResearchJob && handleDeepResearch(currentResearchJob, true)}
+        />
       </div>
     </Layout>
   );

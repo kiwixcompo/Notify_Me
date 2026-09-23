@@ -9,6 +9,7 @@
     "worker": "node worker/agenda.js"
   },
   "dependencies": {
+    "@google/genai": "^2.24.0",
     "@sendgrid/mail": "^7.7.0",
     "agenda": "^5.0.0",
     "axios": "^1.20.0",

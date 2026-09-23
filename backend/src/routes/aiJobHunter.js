@@ -876,4 +876,9 @@ router.get('/alerts', requireAuth, async (req, res) => {
   }
 });
 
+// Deep Job Research Endpoints
+const { handleJobResearch, getJobResearch } = require('../controllers/researchController');
+router.post('/research/:jobId', optionalAuth, handleJobResearch);
+router.get('/research/:jobId', optionalAuth, getJobResearch);
+
 module.exports = router;

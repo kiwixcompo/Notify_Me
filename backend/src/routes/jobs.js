@@ -97,4 +97,8 @@ router.get('/debug', async (req, res) => {
   }
 });
 
+const { handleJobResearch, getJobResearch } = require('../controllers/researchController');
+router.post('/:jobId/research', handleJobResearch);
+router.get('/:jobId/research', getJobResearch);
+
 module.exports = router; 
