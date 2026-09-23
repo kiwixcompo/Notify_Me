@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Layout from '../components/Layout';
+import SupervisorFinder from '../components/SupervisorFinder';
 import { getApiBase } from '../utils/apiBase';
 
 const API_BASE = getApiBase();
@@ -507,8 +508,9 @@ export default function GrantStudio() {
         <p className="text-purple-200 text-xs mt-0.5">PhD Finder · Supervisor Outreach · Proposal Studio</p>
 
         {/* Mobile Segmented Tabs */}
-        <div className="segmented-control mt-4 bg-white/10">
+        <div className="segmented-control mt-4 bg-white/10 overflow-x-auto scrollbar-hide">
           {[
+            { id: 'supervisors', label: '🎓 Supervisors' },
             { id: 'crawler', label: '🌐 Sites' },
             { id: 'finder', label: '🔎 Grants' },
             { id: 'alignment', label: '🎯 Align' },
@@ -540,11 +542,19 @@ export default function GrantStudio() {
               </div>
               <h1 className="text-2xl font-bold tracking-tight">🔬 Grant Hunter & AI Proposal Studio</h1>
               <p className="text-purple-200 text-sm mt-1 max-w-2xl">
-                Are you a lecturer or researcher with a great idea but no funding? Find suitable grants, turn raw concepts into fundable proposals, develop realistic project budgets, and align with funder priorities.
+                Are you a lecturer or researcher with a great idea but no funding? Find suitable grants, turn raw concepts into fundable proposals, discover funded academic supervisors on LinkedIn, and align with funder priorities.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-1.5 bg-black/30 p-1.5 rounded-xl border border-white/10">
+              <button
+                onClick={() => setActiveTab('supervisors')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                  activeTab === 'supervisors' ? 'bg-indigo-600 text-white shadow ring-2 ring-indigo-400' : 'text-indigo-200 hover:text-white bg-indigo-500/20'
+                }`}
+              >
+                <span>🎓</span> Supervisor Scout
+              </button>
               <button
                 onClick={() => {
                   setActiveTab('crawler');
@@ -612,6 +622,13 @@ export default function GrantStudio() {
           <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex justify-between items-center">
             <span>⚠️ {error}</span>
             <button onClick={() => setError('')} className="text-red-500 font-bold ml-4">✕</button>
+          </div>
+        )}
+
+        {/* TAB: ACADEMIC SUPERVISOR & FUNDING SCOUT */}
+        {activeTab === 'supervisors' && (
+          <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
+            <SupervisorFinder />
           </div>
         )}
 

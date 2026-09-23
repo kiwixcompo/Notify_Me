@@ -195,6 +195,8 @@ router.get('/calendar', requireAuth, scholarshipController.getScholarshipCalenda
 router.get('/search', scholarshipController.searchScholarshipsRealTime);
 
 // Protected routes
-router.get('/raw/:feedId', requireAuth, scholarshipController.getRawScholarshipFeed);
+// Academic Supervisor & Funding Scout Engine
+const { handleSupervisorSearch } = require('../controllers/supervisorController');
+router.post('/supervisors/discover', handleSupervisorSearch);
 
 module.exports = router;
