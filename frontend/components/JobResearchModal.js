@@ -114,6 +114,38 @@ export default function JobResearchModal({
                   <span>🏢</span> Stage 1: Company &amp; Careers Portal Resolver
                 </div>
 
+                {/* Direct Application Bypass Banner */}
+                {dossier.companyProfile?.directApplicationBypass?.verifiedDirectLink && (
+                  <div className="p-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border-2 border-emerald-400 rounded-2xl space-y-2 shadow-sm">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🚀</span>
+                        <div>
+                          <div className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+                            Direct Application Bypass ({dossier.companyProfile.directApplicationBypass.atsProvider || 'Direct ATS'})
+                          </div>
+                          <p className="text-xs font-semibold text-slate-900 mt-0.5">
+                            Bypass third-party intermediaries (LinkedIn, ZipRecruiter, Indeed) and apply directly into their recruiter queue.
+                          </p>
+                        </div>
+                      </div>
+                      <a
+                        href={dossier.companyProfile.directApplicationBypass.verifiedDirectLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all shrink-0 flex items-center gap-1.5"
+                      >
+                        Apply Directly on {dossier.companyProfile.directApplicationBypass.atsProvider || 'Official ATS'} ↗
+                      </a>
+                    </div>
+                    {dossier.companyProfile.directApplicationBypass.instructions && (
+                      <p className="text-[11px] text-slate-600 italic pt-1 border-t border-emerald-200/50">
+                        💡 {dossier.companyProfile.directApplicationBypass.instructions}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {dossier.companyProfile?.disambiguationNotes && (
                   <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed">
                     <span className="font-bold">Entity Resolution: </span>

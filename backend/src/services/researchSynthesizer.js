@@ -118,6 +118,9 @@ ${JSON.stringify(searchData.recruiterResults || [], null, 2)}
 3. Salary & Compensation Data:
 ${JSON.stringify(searchData.salaryResults || [], null, 2)}
 
+4. Direct ATS & Official Application Links (Bypassing third-party job boards like LinkedIn, ZipRecruiter, Indeed):
+${JSON.stringify(searchData.directAtsResults || [], null, 2)}
+
 ### Output Requirements:
 Produce a strictly valid JSON response conforming to this exact schema (NO markdown formatting, NO backticks, just raw JSON):
 {
@@ -128,10 +131,15 @@ Produce a strictly valid JSON response conforming to this exact schema (NO markd
         "industry": "Industry description (e.g., Federal Consulting & Health IT)",
         "isDirectMatch": true,
         "officialCareersUrl": "Direct link to job portal",
-        "quickApplyUrl": "Link to general talent pool or application link",
+        "quickApplyUrl": "Link to direct ATS or application link bypassing third parties (e.g. greenhouse, lever, ashby, workday, or company domain)",
         "companyLinkedInUrl": "LinkedIn company page link"
       }
     ],
+    "directApplicationBypass": {
+      "verifiedDirectLink": "Direct URL to apply on official ATS or company page without third party intermediaries",
+      "atsProvider": "e.g. Greenhouse, Lever, Ashby, Workday, or Native Career Site",
+      "instructions": "Direct guidance on how to submit resume directly without being filtered by middleman boards"
+    },
     "disambiguationNotes": "Explain if multiple companies share this name (e.g. Aptive Resources vs Aptive Environmental) and clarify which one hosts this role."
   },
   "recruiters": [

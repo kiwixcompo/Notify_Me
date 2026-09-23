@@ -5,8 +5,8 @@
   "devFiles": [],
   "ampDevFiles": [],
   "lowPriorityFiles": [
-    "static/yb9XF1bFuSo3Jm8pskR7T/_buildManifest.js",
-    "static/yb9XF1bFuSo3Jm8pskR7T/_ssgManifest.js"
+    "static/ubLrI9vmqfpLSLAMxW5na/_buildManifest.js",
+    "static/ubLrI9vmqfpLSLAMxW5na/_ssgManifest.js"
   ],
   "rootMainFiles": [],
   "pages": {
@@ -20,7 +20,7 @@
       "static/chunks/webpack-ee7e63bc15b31913.js",
       "static/chunks/framework-64ad27b21261a9ce.js",
       "static/chunks/main-b72093f7aa2e45f9.js",
-      "static/css/24664dde7edfadd5.css",
+      "static/css/b56ccb8815c78a29.css",
       "static/chunks/pages/_app-dcc13dffefba2d52.js"
     ],
     "/_error": [
@@ -88,7 +88,7 @@
       "static/chunks/66-187f57243d4a51bf.js",
       "static/chunks/424-ca7471161a310844.js",
       "static/chunks/494-34e415bf79b748e4.js",
-      "static/chunks/pages/jobs-d89edde6ebb908bb.js"
+      "static/chunks/pages/jobs-cc295bf2ac5a10ba.js"
     ],
     "/linkedin": [
       "static/chunks/webpack-ee7e63bc15b31913.js",

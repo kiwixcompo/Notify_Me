@@ -103,7 +103,7 @@ async function gatherJobIntelligence(companyName, jobTitle, jobLocation = '', se
   const cleanCompany = (companyName || '').trim();
   const cleanTitle = (jobTitle || '').trim();
 
-  const [careerResults, recruiterResults, salaryResults] = await Promise.all([
+  const [careerResults, recruiterResults, salaryResults, directAtsResults] = await Promise.all([
     // Vector 1: Official careers portal & company disambiguation
     searchGoogle(
       `"${cleanCompany}" official careers portal OR jobs site OR "work with us"`,
@@ -123,13 +123,21 @@ async function gatherJobIntelligence(companyName, jobTitle, jobLocation = '', se
       `"${cleanCompany}" "${cleanTitle}" salary OR compensation Glassdoor OR Levels.fyi OR Indeed`,
       5,
       serperApiKey
+    ),
+
+    // Vector 4: Direct ATS & Career Page bypass links (Greenhouse, Lever, Ashby, Workday, SmartRecruiters)
+    searchGoogle(
+      `(site:boards.greenhouse.io OR site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:myworkdayjobs.com OR site:smartrecruiters.com OR site:breezy.hr OR site:workable.com) "${cleanCompany}" "${cleanTitle}"`,
+      5,
+      serperApiKey
     )
   ]);
 
   return {
     careerResults,
     recruiterResults,
-    salaryResults
+    salaryResults,
+    directAtsResults
   };
 }
 

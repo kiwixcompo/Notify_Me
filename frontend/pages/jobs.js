@@ -38,6 +38,31 @@ export default function AIJobHunter() {
   const [researchError, setResearchError] = useState('');
   const [researchLoadingId, setResearchLoadingId] = useState(null);
 
+  // Direct Company + Role Bypass Research Form State
+  const [bypassCompany, setBypassCompany] = useState('');
+  const [bypassRole, setBypassRole] = useState('');
+  const [bypassLocation, setBypassLocation] = useState('Remote');
+
+  const handleDirectBypassSearch = (e) => {
+    if (e) e.preventDefault();
+    if (!bypassCompany.trim() || !bypassRole.trim()) {
+      alert('Please provide both the Company Name and Job Role.');
+      return;
+    }
+
+    const syntheticId = `bypass_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const syntheticJob = {
+      id: syntheticId,
+      title: bypassRole.trim(),
+      company: bypassCompany.trim(),
+      location: bypassLocation.trim() || 'Remote',
+      url: '',
+      description: `Target role: ${bypassRole.trim()} at ${bypassCompany.trim()}`
+    };
+
+    handleDeepResearch(syntheticJob, true);
+  };
+
   const handleDeepResearch = async (job, forceRefresh = false) => {
     setCurrentResearchJob(job);
     setResearchModalOpen(true);
@@ -360,7 +385,77 @@ export default function AIJobHunter() {
         {/* TAB 1: SEARCH & DISCOVERY */}
         {tab === 'search' && (
           <div className="space-y-4 px-4 md:px-0 pt-4 md:pt-0">
-            {/* Search Controls */}
+            {/* Direct Company & Role Bypass Research Box */}
+            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 rounded-2xl p-5 sm:p-6 text-white shadow-md space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-white/10 pb-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">🎯</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-300 bg-indigo-900/60 px-2.5 py-0.5 rounded-full border border-indigo-700">
+                      Direct Application &amp; Recruiter Bypass
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold">
+                    Target Specific Company &amp; Role
+                  </h3>
+                  <p className="text-xs text-indigo-200 mt-0.5">
+                    Enter any company name and job title to bypass third-party job boards (LinkedIn, Indeed, ZipRecruiter) and discover their official direct ATS link, hiring managers, and verified salary band.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleDirectBypassSearch} className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
+                <div className="sm:col-span-4">
+                  <label className="block text-xs font-semibold text-indigo-200 mb-1">
+                    Company Name <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Aptive, Stripe, Datadog, Anthropic…"
+                    value={bypassCompany}
+                    onChange={(e) => setBypassCompany(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-indigo-300/60 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none min-h-[44px]"
+                  />
+                </div>
+
+                <div className="sm:col-span-5">
+                  <label className="block text-xs font-semibold text-indigo-200 mb-1">
+                    Job Role / Title <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Web Developer, Senior DevOps, AI Engineer…"
+                    value={bypassRole}
+                    onChange={(e) => setBypassRole(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-indigo-300/60 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none min-h-[44px]"
+                  />
+                </div>
+
+                <div className="sm:col-span-3 flex items-end">
+                  <button
+                    type="submit"
+                    disabled={researchLoading && researchLoadingId?.startsWith('bypass_')}
+                    className="w-full py-2.5 px-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 min-h-[44px] disabled:opacity-50"
+                  >
+                    {researchLoading && researchLoadingId?.startsWith('bypass_') ? (
+                      <>
+                        <span className="animate-spin text-sm">⚡</span>
+                        <span>Bypassing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🔬</span>
+                        <span>Find Direct Info</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* General Discovery Search Controls */}
             <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
