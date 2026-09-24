@@ -67,8 +67,8 @@ function resolveBestJobLink(careers, directAts, exactMatch, companyName, jobUrl)
     return jobUrl;
   }
 
-  // 6. Direct company career domain guess
-  return `https://jobs.${cleanComp}.com`;
+  // 6. Direct company career domain fallback
+  return `https://${cleanComp}.com/jobs/`;
 }
 
 /**

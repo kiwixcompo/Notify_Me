@@ -1,5 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const dns = require('dns').promises;
 const SystemConfig = require('../models/SystemConfig');
 
 /**
@@ -29,7 +30,88 @@ function cleanQuery(str) {
 const THIRD_PARTY_AGGREGATORS_REGEX = /(?:indeed\.com|ziprecruiter\.com|linkedin\.com\/jobs|glassdoor\.com|monster\.com|careerbuilder\.com|simplyhired\.com|theladders\.com|studysmarter\.co\.uk|salary\.com|jooble\.org|talent\.com|adzuna\.com|monster\.co\.uk)/i;
 
 /**
- * Scrapes Brave Search as a free, highly reliable SERP provider
+ * Validates whether a hostname exists in DNS
+ */
+async function checkDnsHostname(hostname) {
+  if (!hostname) return false;
+  try {
+    await dns.lookup(hostname);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Confirms whether a direct candidate URL or domain is reachable and exists
+ */
+async function verifyCandidateUrl(url) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    const dnsValid = await checkDnsHostname(parsed.hostname);
+    if (!dnsValid) return false;
+
+    // Optional quick HTTP probe
+    const res = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      timeout: 5000,
+      maxRedirects: 4,
+      validateStatus: () => true
+    });
+
+    // 404, 410, 502 means explicitly not found or dead
+    if (res.status === 404 || res.status === 410 || res.status === 502) {
+      return false;
+    }
+    return true;
+  } catch (err) {
+    // If it's a DNS failure or connection refused, it's invalid
+    if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') return false;
+    // Timeout or 403 bot blocks on valid domains are acceptable
+    return true;
+  }
+}
+
+/**
+ * Resolves the primary root domain for a company (e.g. wallethub.com, americaneagle.com)
+ */
+async function resolveCompanyDomain(companyName, seedUrls = []) {
+  const companySlug = (companyName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  // 1. Inspect seed URLs for existing company domain
+  for (const item of seedUrls) {
+    const urlStr = typeof item === 'string' ? item : item?.link;
+    if (!urlStr) continue;
+    try {
+      const parsed = new URL(urlStr);
+      if (parsed.hostname.includes(companySlug) && !THIRD_PARTY_AGGREGATORS_REGEX.test(parsed.hostname)) {
+        const parts = parsed.hostname.split('.');
+        if (parts.length >= 2) {
+          const root = parts.slice(-2).join('.');
+          if (await checkDnsHostname(root)) return root;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2. DNS check common TLDs (.com, .io, .co, .org, .net)
+  const tlds = ['.com', '.io', '.co', '.org', '.net'];
+  for (const t of tlds) {
+    const candidate = companySlug + t;
+    if (await checkDnsHostname(candidate)) {
+      return candidate;
+    }
+  }
+
+  return `${companySlug}.com`;
+}
+
+/**
+ * Scrapes Brave Search as a free, reliable SERP provider
  */
 async function searchBrave(query, numResults = 8) {
   try {
@@ -97,8 +179,8 @@ async function searchGoogle(query, numResults = 6, apiKey = '') {
 }
 
 /**
- * Searches for the exact official job posting or ATS page on the company website
- * specifically designed to bypass third-party middleman boards like Indeed or ZipRecruiter
+ * Searches for and validates the exact official job posting or ATS page on the company website,
+ * confirming domain and path existence to prevent incorrect subdomains (e.g. jobs.wallethub.com vs wallethub.com/jobs/)
  */
 async function resolveExactCompanyJobUrl(companyName, jobTitle, serperApiKey = '') {
   const cleanComp = cleanQuery(companyName);
@@ -115,6 +197,7 @@ async function resolveExactCompanyJobUrl(companyName, jobTitle, serperApiKey = '
   ];
 
   let foundCompanyCareers = null;
+  const discoveredLinks = [];
 
   for (const q of targetedQueries) {
     const results = await searchGoogle(q, 8, serperApiKey);
@@ -129,6 +212,8 @@ async function resolveExactCompanyJobUrl(companyName, jobTitle, serperApiKey = '
         continue;
       }
 
+      discoveredLinks.push(r.link);
+
       // Check if URL belongs to company domain or recognized ATS
       const isCompanyDomain = urlLower.includes(companySlug);
       const isAts = /greenhouse\.io|lever\.co|ashbyhq\.com|myworkdayjobs\.com|smartrecruiters\.com|workable\.com|breezy\.hr/.test(urlLower);
@@ -141,12 +226,16 @@ async function resolveExactCompanyJobUrl(companyName, jobTitle, serperApiKey = '
         const isExactPosting = urlLower.includes(roleSlug) || (matchesRole && (urlLower.includes('/job') || urlLower.includes('/career')));
 
         if (isExactPosting) {
-          return {
-            exactUrl: r.link,
-            title: r.title,
-            snippet: r.snippet,
-            provider: isAts ? 'Direct ATS' : 'Official Careers Portal'
-          };
+          // Confirm URL is valid
+          const isValid = await verifyCandidateUrl(r.link);
+          if (isValid) {
+            return {
+              exactUrl: r.link,
+              title: r.title,
+              snippet: r.snippet,
+              provider: isAts ? 'Direct ATS' : 'Official Careers Portal'
+            };
+          }
         }
 
         if (!foundCompanyCareers && isCompanyDomain) {
@@ -161,28 +250,66 @@ async function resolveExactCompanyJobUrl(companyName, jobTitle, serperApiKey = '
     }
   }
 
-  // Strategy 2: If company careers base URL found or constructed, construct candidate direct posting URL
+  // Strategy 2: If company careers base URL found from search (e.g. https://jobs.americaneagle.com/ or https://wallethub.com/jobs/)
   if (foundCompanyCareers && foundCompanyCareers.exactUrl) {
-    // If the base career URL is e.g. https://jobs.americaneagle.com/, create direct candidate URL: https://jobs.americaneagle.com/wordpress-architect/
     try {
       const baseUrl = new URL(foundCompanyCareers.exactUrl);
-      const directCandidateUrl = `${baseUrl.origin}/${roleSlug}/`;
-      return {
-        exactUrl: directCandidateUrl,
-        title: `${cleanRole} at ${cleanComp}`,
-        snippet: `Direct posting URL on ${cleanComp}'s official careers portal.`,
-        provider: 'Official Careers Portal'
-      };
-    } catch (e) {
-      return foundCompanyCareers;
-    }
+      const hostnameValid = await checkDnsHostname(baseUrl.hostname);
+      if (hostnameValid) {
+        let directCandidateUrl;
+        if (baseUrl.pathname.includes('/jobs') || baseUrl.pathname.includes('/careers')) {
+          const basePath = baseUrl.pathname.replace(/\/+$/, '');
+          directCandidateUrl = `${baseUrl.origin}${basePath}/${roleSlug}/`;
+        } else {
+          directCandidateUrl = `${baseUrl.origin}/${roleSlug}/`;
+        }
+
+        const candidateOk = await verifyCandidateUrl(directCandidateUrl);
+        if (candidateOk) {
+          return {
+            exactUrl: directCandidateUrl,
+            title: `${cleanRole} at ${cleanComp}`,
+            snippet: `Direct posting URL on ${cleanComp}'s verified official careers portal.`,
+            provider: 'Official Careers Portal'
+          };
+        }
+      }
+    } catch (e) {}
   }
 
-  // Strategy 3: Standard direct company career subdomain fallback
+  // Strategy 3: Verify and synthesize correct company domain and structure via DNS checks
+  const rootDomain = await resolveCompanyDomain(cleanComp, discoveredLinks);
+
+  // Check 1: Does jobs.{domain} exist in DNS? (e.g. jobs.americaneagle.com)
+  const jobsSubdomain = `jobs.${rootDomain}`;
+  if (await checkDnsHostname(jobsSubdomain)) {
+    const subUrl = `https://${jobsSubdomain}/${roleSlug}/`;
+    return {
+      exactUrl: subUrl,
+      title: `${cleanRole} at ${cleanComp}`,
+      snippet: `Verified official job portal on ${jobsSubdomain}.`,
+      provider: 'Official Careers Portal'
+    };
+  }
+
+  // Check 2: Does careers.{domain} exist in DNS?
+  const careersSubdomain = `careers.${rootDomain}`;
+  if (await checkDnsHostname(careersSubdomain)) {
+    const subUrl = `https://${careersSubdomain}/${roleSlug}/`;
+    return {
+      exactUrl: subUrl,
+      title: `${cleanRole} at ${cleanComp}`,
+      snippet: `Verified official job portal on ${careersSubdomain}.`,
+      provider: 'Official Careers Portal'
+    };
+  }
+
+  // Check 3: Standard primary path https://{domain}/jobs/{roleSlug}/ (e.g. https://wallethub.com/jobs/web-designer/)
+  const pathUrl = `https://${rootDomain}/jobs/${roleSlug}/`;
   return {
-    exactUrl: `https://jobs.${companySlug}.com/${roleSlug}/`,
+    exactUrl: pathUrl,
     title: `${cleanRole} at ${cleanComp}`,
-    snippet: `Official company application endpoint for ${cleanComp}.`,
+    snippet: `Official company application endpoint on ${rootDomain}.`,
     provider: 'Official Careers Portal'
   };
 }
@@ -228,7 +355,7 @@ async function gatherJobIntelligence(companyName, jobTitle, jobLocation = '', se
       serperApiKey
     ),
 
-    // Vector 5: Exact Company Job URL Resolver
+    // Vector 5: Exact Company Job URL Resolver (Verified via DNS/HTTP)
     resolveExactCompanyJobUrl(cleanCompany, cleanTitle, serperApiKey)
   ]);
 
@@ -244,6 +371,9 @@ async function gatherJobIntelligence(companyName, jobTitle, jobLocation = '', se
 module.exports = {
   searchGoogle,
   searchBrave,
+  resolveCompanyDomain,
+  verifyCandidateUrl,
+  checkDnsHostname,
   resolveExactCompanyJobUrl,
   gatherJobIntelligence,
   getEffectiveSerperKey
