@@ -13,6 +13,11 @@ export default function SupervisorFinder() {
   const [copiedKey, setCopiedKey] = useState(null);
   const [error, setError] = useState('');
 
+  // Optional custom API keys
+  const [showApiKeys, setShowApiKeys] = useState(false);
+  const [serperApiKey, setSerperApiKey] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+
   const getHeaders = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     return token ? { Authorization: 'Bearer ' + token } : {};
@@ -29,10 +34,16 @@ export default function SupervisorFinder() {
     setError('');
     setProfessors([]);
     try {
-      const res = await axios.post(`${API_BASE}/api/scholarships/supervisors/discover`, {
+      const payload = {
         topic: topic.trim(),
         country: country.trim()
-      }, { headers: getHeaders() });
+      };
+      if (serperApiKey.trim()) payload.serper_api_key = serperApiKey.trim();
+      if (geminiApiKey.trim()) payload.gemini_api_key = geminiApiKey.trim();
+
+      const res = await axios.post(`${API_BASE}/api/scholarships/supervisors/discover`, payload, {
+        headers: getHeaders()
+      });
 
       if (res.data?.success) {
         setProfessors(res.data.data || []);
@@ -67,10 +78,52 @@ export default function SupervisorFinder() {
               Find Faculty, Principal Investigators &amp; Graduate Program Chairs
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Execute multi-vector LinkedIn search dorks targeted specifically at assistant professors with startup grants, lab directors, and graduate chairs with funded openings.
+              Execute multi-vector LinkedIn search dorks and OpenAlex scholarly knowledge graph queries to discover assistant professors, lab directors, and graduate chairs with funded openings.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowApiKeys(!showApiKeys)}
+            className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-200 transition shrink-0"
+          >
+            {showApiKeys ? 'Hide Custom API Keys ▲' : '⚙️ Custom API Keys ▼'}
+          </button>
         </div>
+
+        {/* Optional Custom API Key accordion */}
+        {showApiKeys && (
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-xs animate-in fade-in duration-150">
+            <div className="font-semibold text-slate-700 flex items-center gap-1.5">
+              <span>🔑</span>
+              <span>Custom Search &amp; AI Keys (Optional)</span>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              If public search engines encounter rate limits, provide a free Serper.dev key (2,500 free queries) or Gemini API key. System keys configured in the Admin Dashboard are automatically used as defaults.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Serper.dev API Key</label>
+                <input
+                  type="password"
+                  placeholder="e.g., a89f7b..."
+                  value={serperApiKey}
+                  onChange={(e) => setSerperApiKey(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Gemini API Key</label>
+                <input
+                  type="password"
+                  placeholder="e.g., AIzaSy..."
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1">
           <div className="md:col-span-8">
@@ -79,7 +132,7 @@ export default function SupervisorFinder() {
             </label>
             <input
               type="text"
-              placeholder="e.g., Explainable AI in Medical Diagnostics, Edge Computing, Quantum ML..."
+              placeholder="e.g., Computer Science, Explainable AI in Medical Diagnostics, Quantum ML..."
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none min-h-[44px]"
@@ -93,7 +146,7 @@ export default function SupervisorFinder() {
             </label>
             <input
               type="text"
-              placeholder="e.g., Canada, United Kingdom, USA, Germany..."
+              placeholder="e.g., United Kingdom, Canada, USA, Germany..."
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none min-h-[44px]"
@@ -109,7 +162,7 @@ export default function SupervisorFinder() {
               {loading ? (
                 <>
                   <span className="animate-spin text-base">⚡</span>
-                  <span>Scanning Faculty &amp; Lab Directors via Multi-Vector Dorks...</span>
+                  <span>Scanning Faculty &amp; Lab Directors via Multi-Vector Knowledge Graph...</span>
                 </>
               ) : (
                 '🔍 Discover Prospective Supervisors & Funding Gatekeepers'
@@ -192,7 +245,7 @@ export default function SupervisorFinder() {
                   rel="noreferrer"
                   className="flex-1 text-center bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold py-2 px-3 rounded-xl transition"
                 >
-                  LinkedIn Profile ↗
+                  Academic / LinkedIn Profile ↗
                 </a>
               )}
               <button
@@ -235,7 +288,7 @@ export default function SupervisorFinder() {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>💬</span> LinkedIn Connection Note (&le; 280 chars)
+                  <span>💬</span> Academic / LinkedIn Connection Note (&le; 280 chars)
                 </h4>
                 <button
                   onClick={() =>
@@ -251,53 +304,48 @@ export default function SupervisorFinder() {
               </div>
             </div>
 
-            {/* 2. Formal Academic Inquiry Email */}
+            {/* 2. Formal Cold Email Draft */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>✉️</span> Formal Academic Cold Email
+                  <span>✉️</span> Formal Prospective Graduate &amp; Supervisor Email
                 </h4>
                 <button
                   onClick={() =>
                     copyToClipboard(
-                      `Subject: ${selectedProf.outreachKit?.formalColdEmail?.subjectLine || ''}\n\n${selectedProf.outreachKit?.formalColdEmail?.body || ''}`,
-                      'formal_email'
+                      `Subject: ${selectedProf.outreachKit?.formalColdEmail?.subjectLine}\n\n${selectedProf.outreachKit?.formalColdEmail?.body}`,
+                      'cold_email'
                     )
                   }
                   className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
                 >
-                  {copiedKey === 'formal_email' ? '✓ Copied Full Email!' : '📋 Copy Full Email'}
+                  {copiedKey === 'cold_email' ? '✓ Copied Email!' : '📋 Copy Full Email'}
                 </button>
               </div>
-              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2 text-xs text-slate-700">
-                <p>
-                  <strong className="text-slate-900">Subject: </strong>
-                  <span className="text-indigo-900 font-semibold">
+
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500">Subject:</span>
+                  <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg text-xs font-medium text-slate-800 mt-0.5">
                     {selectedProf.outreachKit?.formalColdEmail?.subjectLine}
-                  </span>
-                </p>
-                <div className="border-t border-slate-200/80 pt-2 whitespace-pre-line leading-relaxed">
-                  {selectedProf.outreachKit?.formalColdEmail?.body}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500">Body:</span>
+                  <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-xs text-slate-800 whitespace-pre-wrap leading-relaxed mt-0.5 font-sans">
+                    {selectedProf.outreachKit?.formalColdEmail?.body}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="pt-2 flex justify-between items-center border-t border-slate-100">
-              {selectedProf.linkedInUrl && (
-                <a
-                  href={selectedProf.linkedInUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs text-blue-600 hover:underline font-semibold"
-                >
-                  Open LinkedIn Profile ↗
-                </a>
-              )}
+            <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setSelectedProf(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
               >
-                Done
+                Close
               </button>
             </div>
           </div>
