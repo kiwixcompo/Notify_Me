@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../controllers/userController');
+const { requireAuth, optionalAuth } = require('../controllers/userController');
 const scholarshipController = require('../controllers/scholarshipController');
 const { TARGET_SITES, crawlAllScholarshipSites } = require('../services/scholarshipCrawler');
 const Scholarship = require('../models/Scholarship');
@@ -11,8 +11,8 @@ router.get('/crawler/sites', (req, res) => {
   res.json({ success: true, sites: TARGET_SITES });
 });
 
-// GET /api/scholarships/crawler/live - Crawl registered target sites with normalization & filters
-router.get('/crawler/live', requireAuth, async (req, res) => {
+// GET /api/scholarships/crawler/live - Crawl registered target sites with normalization & filters (supports guests and logged-in users)
+router.get('/crawler/live', optionalAuth, async (req, res) => {
   try {
     const { siteId, onlyFullyFunded, excludeExpired, computerScienceOnly, country } = req.query;
 
@@ -58,7 +58,7 @@ router.post('/crawler/save', requireAuth, async (req, res) => {
 });
 
 // Node.js implementation of analyze-fit using Groq API directly
-router.post('/analyze-fit', requireAuth, async (req, res) => {
+router.post('/analyze-fit', optionalAuth, async (req, res) => {
   try {
     const { scholarship_text, candidate_profile, groq_api_key } = req.body;
     const effectiveApiKey = groq_api_key || process.env.GROQ_API_KEY;
@@ -124,7 +124,7 @@ RETURN STRICT JSON WITH NO MARKDOWN CODE BLOCKS OR EXTRA TEXT:
 });
 
 // Node.js implementation of generate-cold-email using Groq API directly
-router.post('/generate-cold-email', requireAuth, async (req, res) => {
+router.post('/generate-cold-email', optionalAuth, async (req, res) => {
   try {
     const { project_title, university_or_lab, pi_name, project_summary, candidate_name, candidate_background, groq_api_key } = req.body;
     const effectiveApiKey = groq_api_key || process.env.GROQ_API_KEY;

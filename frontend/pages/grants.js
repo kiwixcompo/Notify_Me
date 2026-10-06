@@ -369,7 +369,12 @@ export default function GrantStudio() {
       setCrawledScholarships(res.data?.opportunities || []);
     } catch (err) {
       console.error('Scholarship crawl error:', err);
-      setError(err.response?.data?.error || 'Failed to crawl scholarship websites.');
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        setError('Your session has expired. Please log in again to save opportunities, or refresh to continue as guest.');
+      } else {
+        setError(err.response?.data?.error || 'Failed to crawl scholarship websites.');
+      }
     } finally {
       setCrawlingLive(false);
     }
