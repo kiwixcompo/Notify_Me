@@ -32,14 +32,17 @@ const COUNTRY_CODE_MAP = {
 /**
  * Queries OpenAlex for real, published faculty and lab leads in the given field and country
  */
-async function findOpenAlexAcademicProfiles(topic, country = '') {
+/**
+ * Queries OpenAlex for real, published faculty and lab leads in the given field and country
+ */
+async function findOpenAlexAcademicProfiles(topic, country = '', recruitmentTimeframe = '') {
   try {
     const cleanTopic = (topic || '').trim();
     const cleanCountry = (country || '').trim().toLowerCase();
     const countryCode = COUNTRY_CODE_MAP[cleanCountry];
 
     const params = {
-      search: cleanTopic + (country ? ' ' + country : ''),
+      search: cleanTopic + (country ? ' ' + country : '') + (recruitmentTimeframe ? ' ' + recruitmentTimeframe : ''),
       sort: 'cited_by_count:desc',
       per_page: 15
     };
@@ -79,7 +82,9 @@ async function findOpenAlexAcademicProfiles(topic, country = '') {
             paperTitle: work.title,
             year: work.publication_year,
             doi: work.doi,
-            topic: cleanTopic
+            topic: cleanTopic,
+            recruitmentTimeframe: recruitmentTimeframe || 'Immediate / Ongoing Cycle',
+            fundingDetails: 'Funded Departmental Graduate Assistantship / Research Grant'
           });
         }
       });
@@ -94,31 +99,38 @@ async function findOpenAlexAcademicProfiles(topic, country = '') {
 
 /**
  * Searches LinkedIn and OpenAlex for professors, PIs, and graduate coordinators matching the topic
- * using 3 parallel targeted search vectors with automatic academic scholarly fallback
+ * using targeted search vectors with recruitment timeframe, funding detection, and automatic scholarly fallback
  */
-async function findAcademicProfiles(proposedTopic, targetCountry = '', serperApiKey = '') {
+async function findAcademicProfiles(proposedTopic, targetCountry = '', serperApiKey = '', recruitmentTimeframe = '') {
   const cleanTopic = (proposedTopic || '').trim();
   const countryTerm = targetCountry && targetCountry.trim() ? `("${targetCountry.trim()}")` : '';
+  
+  // Format timeframe term for targeted Google/LinkedIn search dorks
+  let timeframeTerm = '';
+  if (recruitmentTimeframe && recruitmentTimeframe.trim() && recruitmentTimeframe !== 'Any' && recruitmentTimeframe !== 'all') {
+    const tf = recruitmentTimeframe.trim();
+    timeframeTerm = `("${tf}" OR "${tf.replace(/\s+/g, ' ')}")`;
+  }
 
   // 1. Run web search dorks (Google via Serper or Brave)
   const [activelyRecruiting, labDirectors, graduateAdvisors] = await Promise.all([
-    // Vector 1: Faculty actively signaling open graduate / PhD funding
+    // Vector 1: Faculty actively signaling open graduate / PhD funding with intake timeframe & benefits
     searchGoogle(
-      `site:linkedin.com/in ("Assistant Professor" OR "Associate Professor" OR "Principal Investigator") "${cleanTopic}" ("accepting PhD" OR "looking for students" OR "open positions" OR "fully funded" OR "RA positions" OR "GRA") ${countryTerm}`,
-      6,
+      `site:linkedin.com/in ("Assistant Professor" OR "Associate Professor" OR "Principal Investigator") "${cleanTopic}" ("accepting PhD" OR "looking for students" OR "open positions" OR "fully funded" OR "RA positions" OR "GRA" OR "tuition waiver" OR "stipend") ${timeframeTerm} ${countryTerm}`.replace(/\s+/g, ' ').trim(),
+      8,
       serperApiKey
     ),
 
-    // Vector 2: Lab directors and established domain researchers
+    // Vector 2: Lab directors and established domain researchers mentioning funding or intake
     searchGoogle(
-      `site:linkedin.com/in ("Professor" OR "Director of Research" OR "Lab Director" OR "Head of Lab") "${cleanTopic}" ("University" OR "Institute of Technology" OR "College") ${countryTerm}`,
+      `site:linkedin.com/in ("Professor" OR "Director of Research" OR "Lab Director" OR "Head of Lab") "${cleanTopic}" ("University" OR "Institute of Technology" OR "College") ("funding" OR "funded" OR "grant" OR "students") ${timeframeTerm} ${countryTerm}`.replace(/\s+/g, ' ').trim(),
       6,
       serperApiKey
     ),
 
     // Vector 3: Graduate Coordinators (Gatekeepers who manage departmental assistantships and waivers)
     searchGoogle(
-      `site:linkedin.com/in ("Director of Graduate Studies" OR "Graduate Program Coordinator" OR "Department Chair") "${cleanTopic}" "University" ${countryTerm}`,
+      `site:linkedin.com/in ("Director of Graduate Studies" OR "Graduate Program Coordinator" OR "Department Chair") "${cleanTopic}" "University" ${countryTerm}`.replace(/\s+/g, ' ').trim(),
       6,
       serperApiKey
     )
@@ -134,14 +146,15 @@ async function findAcademicProfiles(proposedTopic, targetCountry = '', serperApi
   let openAlexFaculty = [];
   if (totalDorkCount === 0) {
     console.log(`[Supervisor Finder] SERP search returned 0 records. Querying OpenAlex Scholarly Knowledge Graph for "${cleanTopic}"...`);
-    openAlexFaculty = await findOpenAlexAcademicProfiles(cleanTopic, targetCountry);
+    openAlexFaculty = await findOpenAlexAcademicProfiles(cleanTopic, targetCountry, recruitmentTimeframe);
   }
 
   return {
     activelyRecruiting,
     labDirectors,
     graduateAdvisors,
-    openAlexFaculty
+    openAlexFaculty,
+    recruitmentTimeframe
   };
 }
 

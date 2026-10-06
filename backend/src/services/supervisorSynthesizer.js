@@ -6,6 +6,42 @@ const { getEffectiveGeminiKey } = require('./researchSynthesizer');
  * Fallback synthesizer for academic profiles when AI API keys are unavailable
  */
 function generateHeuristicAcademicDossier(proposedTopic, searchData) {
+  const timeframe = searchData.recruitmentTimeframe || 'Immediate / Upcoming Cycle';
+
+  // Helper to extract funding or timeframe clues from raw snippet
+  function extractFundingAndBenefits(snippet = '', category = '') {
+    const text = snippet.toLowerCase();
+    const benefits = [];
+    if (text.includes('tuition waiver') || text.includes('tuition')) benefits.push('Tuition Waiver');
+    if (text.includes('stipend')) benefits.push('Living Stipend');
+    if (text.includes('ra') || text.includes('research assistant') || text.includes('gra')) benefits.push('Research Assistantship (RA)');
+    if (text.includes('ta') || text.includes('teaching assistant')) benefits.push('Teaching Assistantship (TA)');
+    if (text.includes('health') || text.includes('insurance')) benefits.push('Health Insurance');
+    if (text.includes('fully funded') || text.includes('full funding')) benefits.push('Full Tuition + Monthly Stipend');
+
+    if (benefits.length > 0) {
+      return benefits.join(', ');
+    }
+
+    if (category === 'ACTIVELY_RECRUITING') {
+      return 'Fully Funded Graduate Assistantship (Stipend + Tuition Covered)';
+    } else if (category === 'GRADUATE_COORDINATOR') {
+      return 'Departmental Fellowships, TA/RA Positions & Fee Waivers';
+    }
+    return 'Lab Grant / Departmental Graduate Research Assistantship';
+  }
+
+  function extractTimeframe(snippet = '') {
+    const text = snippet.toLowerCase();
+    if (text.includes('fall 2026') || text.includes('fall 26')) return 'Fall 2026';
+    if (text.includes('spring 2026') || text.includes('spring 26')) return 'Spring 2026';
+    if (text.includes('fall 2025') || text.includes('fall 25')) return 'Fall 2025';
+    if (text.includes('spring 2025') || text.includes('spring 25')) return 'Spring 2025';
+    if (text.includes('summer')) return 'Summer Session';
+    if (text.includes('immediate') || text.includes('open now') || text.includes('asap')) return 'Immediate Opening';
+    return timeframe && timeframe !== 'Any' ? timeframe : 'Upcoming Academic Intake / Ongoing';
+  }
+
   // 1. Gather all candidates from LinkedIn vectors
   const linkedInResults = [
     ...(searchData.activelyRecruiting || []).map(r => ({ ...r, category: 'ACTIVELY_RECRUITING' })),
@@ -21,11 +57,14 @@ function generateHeuristicAcademicDossier(proposedTopic, searchData) {
     institution: f.institution,
     rawName: f.name,
     paperTitle: f.paperTitle,
-    category: i % 2 === 0 ? 'ACTIVELY_RECRUITING' : 'LAB_DIRECTOR'
+    category: i % 2 === 0 ? 'ACTIVELY_RECRUITING' : 'LAB_DIRECTOR',
+    recruitmentTimeframe: f.recruitmentTimeframe,
+    fundingDetails: f.fundingDetails
   }));
 
   const allCandidates = linkedInResults.length > 0 ? linkedInResults : openAlexResults;
 
+  // STRICTLY limit results to 8
   const profiles = allCandidates.slice(0, 8).map(item => {
     // Parse "Dr. First Last - Title - University | LinkedIn"
     const parts = (item.title || '').split(/[-–|]/).map(s => s.trim());
@@ -33,6 +72,8 @@ function generateHeuristicAcademicDossier(proposedTopic, searchData) {
     const name = rawName.startsWith('Dr.') || rawName.startsWith('Prof.') ? rawName : `Prof. ${rawName}`;
     const academicRole = parts[1] || (item.category === 'ACTIVELY_RECRUITING' ? 'Assistant Professor / PI' : item.category === 'LAB_DIRECTOR' ? 'Professor & Lab Director' : 'Director of Graduate Studies');
     const institution = item.institution || parts[2] || 'University Research Department';
+    const profTimeframe = item.recruitmentTimeframe || extractTimeframe(item.snippet);
+    const fundingAndBenefits = item.fundingDetails || extractFundingAndBenefits(item.snippet, item.category);
 
     return {
       name,
@@ -41,6 +82,8 @@ function generateHeuristicAcademicDossier(proposedTopic, searchData) {
       departmentOrLab: `${proposedTopic} Research Group`,
       linkedInUrl: item.link.includes('linkedin.com') ? item.link : `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${name} ${institution}`)}`,
       category: item.category,
+      recruitmentTimeframe: profTimeframe,
+      fundingAndBenefits,
       researchAlignment: item.paperTitle
         ? `Leads investigations intersecting with ${proposedTopic}, recently authoring "${item.paperTitle}".`
         : `Actively explores foundational and applied challenges intersecting with ${proposedTopic}.`,
@@ -48,16 +91,16 @@ function generateHeuristicAcademicDossier(proposedTopic, searchData) {
         ? 'Actively Advertising Funded PhD / Research Assistant Slots'
         : 'Standard Institutional RA/TA via Department & Lab Grants',
       outreachKit: {
-        linkedInNote: `Dear ${name}, I follow your lab's contributions in ${proposedTopic} at ${institution}. I am preparing applications for prospective research/PhD positions and would value connecting to discuss potential research synergy.`,
+        linkedInNote: `Dear ${name}, I follow your lab's contributions in ${proposedTopic} at ${institution}. I am preparing applications for prospective research/PhD positions for ${profTimeframe} and would value connecting to discuss research synergy.`,
         formalColdEmail: {
-          subjectLine: `Prospective Graduate / PhD Researcher Inquiry: ${proposedTopic} - Candidate`,
-          body: `Dear ${name},\n\nI hope this email finds you well. I have been following your research at ${institution} and was particularly drawn to your contributions in ${proposedTopic}${item.paperTitle ? ` (including "${item.paperTitle}")` : ''}.\n\nWith a strong technical and research background, I am eager to contribute to your ongoing investigations. I am writing to inquire if you have open funded graduate (PhD/RA) positions for the upcoming term, or if you are considering new students whose focus aligns with ${proposedTopic}.\n\nI have attached my academic CV and summary of research experience for your review. Thank you very much for your time and consideration.\n\nSincerely,\nProspective Researcher`
+          subjectLine: `Prospective Graduate / PhD Researcher Inquiry: ${proposedTopic} (${profTimeframe}) - Candidate`,
+          body: `Dear ${name},\n\nI hope this email finds you well. I have been following your research at ${institution} and was particularly drawn to your contributions in ${proposedTopic}${item.paperTitle ? ` (including "${item.paperTitle}")` : ''}.\n\nWith a strong technical and research background, I am eager to contribute to your ongoing investigations. I am writing to inquire if you have open funded graduate positions (PhD/RA) for ${profTimeframe}, or if you are considering new students whose focus aligns with ${proposedTopic}.\n\nI have attached my academic CV and summary of research experience for your review. Thank you very much for your time and consideration.\n\nSincerely,\nProspective Researcher`
         }
       }
     };
   });
 
-  return { profiles };
+  return { profiles: profiles.slice(0, 8) };
 }
 
 /**
@@ -66,12 +109,16 @@ function generateHeuristicAcademicDossier(proposedTopic, searchData) {
  */
 async function synthesizeAcademicDossier(proposedTopic, searchData, geminiApiKey = '') {
   const effectiveGeminiKey = geminiApiKey || await getEffectiveGeminiKey();
+  const requestedTimeframe = searchData.recruitmentTimeframe || 'Any / Upcoming Intake';
 
   const prompt = `
 You are an academic fellowship advisor and research scout. Analyze these raw search results and scholarly author records for prospective supervisors, professors, and academic contact persons relevant to the user's research topic.
 
 ### Proposed Topic / Research Area:
 "${proposedTopic}"
+
+### Desired Recruitment Timeframe:
+"${requestedTimeframe}"
 
 ### Raw Discovered Profiles:
 1. Actively Recruiting Profiles:
@@ -87,7 +134,8 @@ ${JSON.stringify(searchData.graduateAdvisors || [], null, 2)}
 ${JSON.stringify(searchData.openAlexFaculty || [], null, 2)}
 
 ### Task & Output Format:
-Return a strictly valid JSON object matching this schema (NO markdown backticks, NO markdown formatting, just raw JSON):
+Return a strictly valid JSON object matching this schema (NO markdown backticks, NO markdown formatting, just raw JSON).
+IMPORTANT: Return AT MOST 8 profiles.
 {
   "profiles": [
     {
@@ -97,20 +145,23 @@ Return a strictly valid JSON object matching this schema (NO markdown backticks,
       "departmentOrLab": "Department or Research Lab name",
       "linkedInUrl": "Direct LinkedIn profile link or people search URL",
       "category": "ACTIVELY_RECRUITING" | "LAB_DIRECTOR" | "GRADUATE_COORDINATOR",
+      "recruitmentTimeframe": "Specific term they are recruiting for (e.g., 'Fall 2026', 'Spring 2026', 'Fall 2025', 'Immediate', 'Upcoming Intake')",
+      "fundingAndBenefits": "Specific funding & benefits available (e.g., 'Full Tuition Waiver + \$32,000/yr Stipend + Health Insurance', or 'Funded Graduate RA/TA', or 'Departmental Fellowship')",
       "researchAlignment": "1-2 sentences highlighting where their lab focus intersects with '${proposedTopic}'",
       "fundingSignal": "Clear mention of funding/slots, or 'Standard Institutional RA/TA via Department'",
       "outreachKit": {
-        "linkedInNote": "A polite 280-character connection note tailored to their research and asking about supervision.",
+        "linkedInNote": "A polite 280-character connection note tailored to their research and asking about supervision for their recruitment timeframe.",
         "formalColdEmail": {
           "subjectLine": "Prospective PhD/Researcher Inquiry: [Short Research Angle] - [Student Name]",
-          "body": "A professional 3-paragraph cold email explaining how the student's background aligns with their recent papers, proposing a research direction based on '${proposedTopic}', and inquiring if they have funded openings or advise students."
+          "body": "A professional 3-paragraph cold email explaining how the student's background aligns with their recent papers, proposing a research direction based on '${proposedTopic}', mentioning their target recruitment intake, and inquiring if they have funded openings."
         }
       }
     }
   ]
 }
 
-Filter out irrelevant corporate profiles, marketing reps, or student profiles. Keep only genuine faculty, researchers, or graduate coordinators. Limit to the top 6-8 strongest candidates.
+Filter out irrelevant corporate profiles, marketing reps, or student profiles. Keep only genuine faculty, researchers, or graduate coordinators.
+STRICT REQUIREMENT: You MUST limit the array to NO MORE THAN 8 profiles.
 `;
 
   // 1. Try Google Gen AI (@google/genai) with gemini-2.5-flash
@@ -130,7 +181,7 @@ Filter out irrelevant corporate profiles, marketing reps, or student profiles. K
 
       const parsed = JSON.parse(response.text);
       if (parsed && Array.isArray(parsed.profiles) && parsed.profiles.length > 0) {
-        return parsed;
+        return { profiles: parsed.profiles.slice(0, 8) };
       }
     } catch (geminiErr) {
       console.warn('Gemini 2.5 academic synthesis failed, attempting Groq fallback:', geminiErr.message);
@@ -157,7 +208,7 @@ Filter out irrelevant corporate profiles, marketing reps, or student profiles. K
 
       const parsed = JSON.parse(groqRes.data.choices[0].message.content);
       if (parsed && Array.isArray(parsed.profiles) && parsed.profiles.length > 0) {
-        return parsed;
+        return { profiles: parsed.profiles.slice(0, 8) };
       }
     }
   } catch (groqErr) {

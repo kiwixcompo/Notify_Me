@@ -8,7 +8,7 @@ const { synthesizeAcademicDossier } = require('../services/supervisorSynthesizer
  */
 async function handleSupervisorSearch(req, res) {
   try {
-    const { topic, country, serper_api_key, gemini_api_key } = req.body;
+    const { topic, country, recruitment_timeframe, serper_api_key, gemini_api_key } = req.body;
 
     if (!topic || topic.trim().length < 3) {
       return res.status(400).json({ error: 'Please provide a valid research topic or study field.' });
@@ -16,21 +16,24 @@ async function handleSupervisorSearch(req, res) {
 
     const cleanTopic = topic.trim();
     const cleanCountry = (country || '').trim();
+    const cleanTimeframe = (recruitment_timeframe || '').trim();
 
-    console.log(`[Supervisor Finder] Querying for: "${cleanTopic}" in "${cleanCountry || 'Worldwide'}"`);
+    console.log(`[Supervisor Finder] Querying for: "${cleanTopic}" in "${cleanCountry || 'Worldwide'}" (Timeframe: "${cleanTimeframe || 'Any'}")`);
 
-    // 1. Run the multi-vector dorking engine
-    const searchData = await findAcademicProfiles(cleanTopic, cleanCountry, serper_api_key || '');
+    // 1. Run the multi-vector dorking engine with timeframe filtering
+    const searchData = await findAcademicProfiles(cleanTopic, cleanCountry, serper_api_key || '', cleanTimeframe);
 
     // 2. Synthesize with Gemini / Groq
     const resultDossier = await synthesizeAcademicDossier(cleanTopic, searchData, gemini_api_key || '');
 
-    const profiles = resultDossier?.profiles || [];
+    // Strictly cap to at most 8 results per search
+    const profiles = (resultDossier?.profiles || []).slice(0, 8);
 
     return res.status(200).json({
       success: true,
       topic: cleanTopic,
       country: cleanCountry,
+      recruitment_timeframe: cleanTimeframe,
       count: profiles.length,
       data: profiles
     });
