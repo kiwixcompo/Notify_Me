@@ -3,6 +3,13 @@ const router = express.Router();
 const { optionalAuth, requireAuth } = require('../controllers/userController');
 const ClientLead = require('../models/ClientLead');
 const {
+  discoverLocalMapDirectoryLeads,
+  discoverSocialOnlyLeads,
+  discoverParkedDomainLeads,
+  extractBusinessContactsForFree,
+  verifyBusinessLegitimacy
+} = require('../services/freeClientPitchService');
+const {
   discoverGooglePlacesLeads,
   discoverOutscraperLeads,
   discoverFacebookLeads,
@@ -11,11 +18,11 @@ const {
 } = require('../services/clientPitchService');
 const { generateWebsitePitch } = require('../services/pitchGeneratorService');
 
-// POST /api/client-pitch/discover - Scan for businesses without websites across selected channels
+// POST /api/client-pitch/discover - Free zero-API discovery with verified contact & legitimacy checks
 router.post('/discover', optionalAuth, async (req, res) => {
   try {
     const {
-      channel, // 'yellowpages_directory' | 'google_places' | 'outscraper_b2b' | 'facebook_pages' | 'whois_new_domains'
+      channel, // 'directory_free' | 'social_free' | 'parked_domains_free' | 'google_places' | 'outscraper_b2b' | 'whois_new_domains'
       keyword,
       location,
       apiKey,
@@ -25,6 +32,22 @@ router.post('/discover', optionalAuth, async (req, res) => {
     let leads = [];
 
     switch (channel) {
+      // 100% Free, Zero-API-Key Channels:
+      case 'directory_free':
+      case 'yellowpages_directory':
+        leads = await discoverLocalMapDirectoryLeads(keyword || 'contractor', location || 'Dallas, TX');
+        break;
+
+      case 'social_free':
+      case 'social_only':
+        leads = await discoverSocialOnlyLeads(keyword || 'roofing', location || 'Miami, FL');
+        break;
+
+      case 'parked_domains_free':
+        leads = await discoverParkedDomainLeads(keyword || 'dental');
+        break;
+
+      // Optional API Channels (still supported if user passes key or configured in DB):
       case 'google_places':
         leads = await discoverGooglePlacesLeads(`${keyword || 'local business'} in ${location || 'New York'}`, apiKey);
         break;
@@ -33,23 +56,18 @@ router.post('/discover', optionalAuth, async (req, res) => {
         leads = await discoverOutscraperLeads(`${keyword || 'contractor'} in ${location || 'London'}`, apiKey);
         break;
 
-      case 'facebook_pages':
-        leads = await discoverFacebookLeads(`${keyword || 'home services'} ${location || ''}`, apiKey);
-        break;
-
       case 'whois_new_domains':
         leads = await discoverWhoisNewDomainLeads(apiKey, dateString);
         break;
 
-      case 'yellowpages_directory':
       default:
-        leads = await discoverYellowpagesLeads(keyword || 'electrician', location || 'Dallas, TX');
+        leads = await discoverLocalMapDirectoryLeads(keyword || 'contractor', location || 'New York, NY');
         break;
     }
 
     res.json({
       success: true,
-      channel: channel || 'yellowpages_directory',
+      channel: channel || 'directory_free',
       count: leads.length,
       leads
     });

@@ -27,7 +27,7 @@ const clientLeadSchema = new mongoose.Schema({
   },
   websiteStatus: {
     type: String,
-    enum: ['no_website', 'needs_redesign', 'new_domain_no_site', 'unverified'],
+    enum: ['no_website', 'needs_redesign', 'new_domain_no_site', 'parked_domain', 'unverified'],
     default: 'no_website'
   },
   domain: {
@@ -38,14 +38,28 @@ const clientLeadSchema = new mongoose.Schema({
   sourceChannel: {
     type: String,
     enum: [
+      'google_maps_free',
+      'social_only',
+      'yellowpages_directory',
+      'parked_domains_free',
       'google_places',
       'outscraper_b2b',
       'facebook_pages',
-      'yellowpages_directory',
       'whois_new_domains',
       'manual'
     ],
     default: 'yellowpages_directory'
+  },
+  verification: {
+    isLegitimate: { type: Boolean, default: true },
+    confidenceScore: { type: Number, default: 0 },
+    verifiedAt: { type: Date, default: Date.now },
+    checks: {
+      phoneVerified: { type: Boolean, default: false },
+      addressVerified: { type: Boolean, default: false },
+      activitySignals: { type: String, default: '' },
+      summary: { type: String, default: '' }
+    }
   },
   status: {
     type: String,

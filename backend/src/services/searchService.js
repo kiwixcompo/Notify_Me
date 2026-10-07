@@ -145,8 +145,9 @@ async function searchBrave(query, numResults = 8) {
   }
 }
 
-const { spawn } = require('child_process');
+const { execFile } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 /**
  * Searches DuckDuckGo via Python ddgs library (Zero-Cost, No rate limits, Ban-proof)
@@ -155,27 +156,28 @@ async function searchDuckDuckGo(query, numResults = 8) {
   return new Promise((resolve) => {
     try {
       const scriptPath = path.join(__dirname, 'ddgSearch.py');
-      const pyExe = process.env.PYTHON_PATH || 'python';
+      const pyCandidates = [
+        process.env.PYTHON_PATH,
+        'C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python312\\python.exe',
+        'py',
+        'python'
+      ].filter(Boolean);
+
+      let pyExe = pyCandidates[0];
+      for (const cand of pyCandidates) {
+        if (cand.includes('\\') && fs.existsSync(cand)) {
+          pyExe = cand;
+          break;
+        }
+      }
       
-      const child = spawn(pyExe, [scriptPath, query, String(numResults)], {
-        timeout: 15000
-      });
-
-      let stdoutData = '';
-      let stderrData = '';
-
-      child.stdout.on('data', (chunk) => {
-        stdoutData += chunk.toString();
-      });
-
-      child.stderr.on('data', (chunk) => {
-        stderrData += chunk.toString();
-      });
-
-      child.on('close', (code) => {
-        if (code === 0 && stdoutData.trim()) {
+      execFile(pyExe, [scriptPath, query, String(numResults)], {
+        timeout: 18000,
+        maxBuffer: 1024 * 1024
+      }, (err, stdout) => {
+        if (!err && stdout && stdout.trim()) {
           try {
-            const parsed = JSON.parse(stdoutData.trim());
+            const parsed = JSON.parse(stdout.trim());
             if (Array.isArray(parsed) && parsed.length > 0) {
               return resolve(parsed);
             }
@@ -183,11 +185,6 @@ async function searchDuckDuckGo(query, numResults = 8) {
             console.warn('[DDGS] JSON parse warning:', e.message);
           }
         }
-        resolve([]);
-      });
-
-      child.on('error', (err) => {
-        console.warn('[DDGS] Execution error:', err.message);
         resolve([]);
       });
     } catch (err) {
@@ -434,6 +431,7 @@ async function gatherJobIntelligence(companyName, jobTitle, jobLocation = '', se
 module.exports = {
   searchGoogle,
   searchBrave,
+  searchDuckDuckGo,
   resolveCompanyDomain,
   verifyCandidateUrl,
   checkDnsHostname,

@@ -6,14 +6,13 @@ import { getApiBase } from '../utils/apiBase';
 const API_BASE = getApiBase();
 
 export default function ClientPitchPage() {
-  const [activeTab, setActiveTab] = useState('scout'); // 'scout' | 'leads' | 'settings'
+  const [activeTab, setActiveTab] = useState('scout'); // 'scout' | 'leads'
 
   // Scout Search Form States
-  const [channel, setChannel] = useState('yellowpages_directory');
+  const [channel, setChannel] = useState('directory_free');
   const [keyword, setKeyword] = useState('plumber');
-  const [location, setLocation] = useState('Austin, TX');
+  const [location, setLocation] = useState('Dallas, TX');
   const [apiKey, setApiKey] = useState('');
-  const [dateString, setDateString] = useState('');
 
   // Results & Loading States
   const [searching, setSearching] = useState(false);
@@ -40,10 +39,6 @@ export default function ClientPitchPage() {
   useEffect(() => {
     const savedKey = localStorage.getItem('user_groq_api_key');
     if (savedKey) setGroqApiKey(savedKey);
-
-    const savedPlacesKey = localStorage.getItem('user_places_api_key');
-    if (savedPlacesKey && channel === 'google_places') setApiKey(savedPlacesKey);
-
     fetchSavedLeads();
   }, []);
 
@@ -69,22 +64,21 @@ export default function ClientPitchPage() {
     try {
       const res = await axios.post(`${API_BASE}/api/client-pitch/discover`, {
         channel,
-        keyword,
-        location,
-        apiKey: apiKey.trim(),
-        dateString: dateString.trim()
+        keyword: keyword.trim(),
+        location: location.trim(),
+        apiKey: apiKey.trim()
       }, { headers: getHeaders() });
 
       if (res.data?.success) {
         setDiscoveredLeads(res.data.leads || []);
         if (res.data.leads?.length === 0) {
-          setError('No businesses without websites found for this query. Try a different niche or location.');
+          setError('No unwebbed businesses found for this specific query. Try a broader service category or nearby city.');
         } else {
-          setSuccess(`Found ${res.data.leads.length} high-intent business leads without websites!`);
+          setSuccess(`Discovered ${res.data.leads.length} verified businesses without websites!`);
         }
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to discover client leads. Please verify parameters or API key.');
+      setError(err.response?.data?.error || 'Failed to discover client leads. Please try another query.');
     } finally {
       setSearching(false);
     }
@@ -166,15 +160,15 @@ export default function ClientPitchPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-2xl">🚀</span>
-                <span className="text-[11px] font-bold uppercase tracking-widest text-cyan-300 bg-white/10 px-3 py-1 rounded-full border border-white/10">
-                  B2B Client Outreach &amp; Lead Engine
+                <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 bg-white/10 px-3 py-1 rounded-full border border-white/10">
+                  100% Free • Zero API Keys • Unrestricted
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                 Pitch Web Development to Businesses
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed">
-                Scan Google Places, YellowPages, Outscraper B2B, Facebook Pages, and Fresh Domains for businesses missing websites. Automatically generate irresistible, high-converting cold pitches and demo proposals.
+                Discover active local businesses operating without websites. Automatically extracts phone numbers, emails, verifies business legitimacy, and crafts instant high-converting pitches.
               </p>
             </div>
 
@@ -186,7 +180,7 @@ export default function ClientPitchPage() {
                   activeTab === 'scout' ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:text-white'
                 }`}
               >
-                <span>🔍</span> Scout Leads
+                <span>🔍</span> Free Scout
               </button>
               <button
                 onClick={() => setActiveTab('leads')}
@@ -209,76 +203,57 @@ export default function ClientPitchPage() {
               
               <div className="border-b border-slate-100 pb-3">
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <span>🎯</span> Lead Acquisition Channels
+                  <span>🎯</span> Free Lead Discovery Engines
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Select your discovery engine. YellowPages operates 100% free with no API keys. Places, Outscraper, Facebook, and Whois allow deep specialized scraping.
+                  Select a zero-cost discovery channel. All searches operate 100% free with contact extraction &amp; legitimacy verification.
                 </p>
               </div>
 
-              {/* 5-Method Channel Selector */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5">
+              {/* 100% Free Channel Selector */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   {
-                    id: 'yellowpages_directory',
-                    label: 'Local Directory',
-                    sub: 'YellowPages (100% Free)',
-                    icon: '📖',
-                    badge: 'No API Key Needed'
+                    id: 'directory_free',
+                    label: 'Local Directory & Map Scout',
+                    sub: 'YellowPages & Local Registries',
+                    icon: '🗺️',
+                    badge: '100% Free • Zero Key'
                   },
                   {
-                    id: 'google_places',
-                    label: 'Google Places (New)',
-                    sub: 'Missing websiteUri',
-                    icon: '📍',
-                    badge: 'Google Maps'
+                    id: 'social_free',
+                    label: 'Social-Only Businesses',
+                    sub: 'Facebook & Instagram Only',
+                    icon: '📱',
+                    badge: '100% Free • Zero Key'
                   },
                   {
-                    id: 'outscraper_b2b',
-                    label: 'Outscraper B2B',
-                    sub: 'Maps + Emails in 1 Call',
-                    icon: '⚡',
-                    badge: 'Contact Scraper'
-                  },
-                  {
-                    id: 'facebook_pages',
-                    label: 'Facebook Pages',
-                    sub: 'Via Serverless Apify',
-                    icon: '👥',
-                    badge: 'Social Leads'
-                  },
-                  {
-                    id: 'whois_new_domains',
-                    label: 'Newly Registered',
-                    sub: 'WhoisXML 24h Feed',
+                    id: 'parked_domains_free',
+                    label: 'Unlaunched & Parked Domains',
+                    sub: 'Pre-Launch Website Pitches',
                     icon: '🌐',
-                    badge: 'Pre-Launch Leads'
+                    badge: '100% Free • Zero Key'
                   }
                 ].map(m => (
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => {
-                      setChannel(m.id);
-                      if (m.id === 'whois_new_domains' && !dateString) {
-                        setDateString(new Date().toISOString().split('T')[0]);
-                      }
-                    }}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                    onClick={() => setChannel(m.id)}
+                    className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
                       channel === m.id
-                        ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-500/20'
+                        ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-500/20'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-xl">{m.icon}</span>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      <div className="flex items-center justify-between gap-1 mb-1.5">
+                        <span className="text-2xl">{m.icon}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
                           {m.badge}
                         </span>
                       </div>
-                      <h3 className="text-xs font-bold text-slate-800">{m.label}</h3>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{m.sub}</p>
+                      <h3 className="text-sm font-bold text-slate-800">{m.label}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">{m.sub}</p>
                     </div>
                   </button>
                 ))}
@@ -286,66 +261,32 @@ export default function ClientPitchPage() {
 
               {/* Dynamic Search Parameters Form */}
               <form onSubmit={handleDiscoverLeads} className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2">
-                {channel !== 'whois_new_domains' ? (
-                  <>
-                    <div className="md:col-span-5">
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Business Industry or Service Niche <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Plumber, Roofer, Dental Clinic, Electrician, Auto Repair..."
-                        value={keyword}
-                        onChange={(e) => setKeyword(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[44px]"
-                        required
-                      />
-                    </div>
+                <div className={channel === 'parked_domains_free' ? 'md:col-span-12' : 'md:col-span-7'}>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Business Industry / Service Niche <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Plumber, Roofing, Dentist Clinic, Auto Repair, Electrician..."
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[44px]"
+                    required
+                  />
+                </div>
 
-                    <div className="md:col-span-4">
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Target Location / City <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Dallas, TX, London, UK, Miami, FL, Chicago, IL..."
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[44px]"
-                        required
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <div className="md:col-span-9">
+                {channel !== 'parked_domains_free' && (
+                  <div className="md:col-span-5">
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Registration Date (YYYY-MM-DD) <span className="text-red-500">*</span>
+                      Target City / Location <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="date"
-                      value={dateString}
-                      onChange={(e) => setDateString(e.target.value)}
+                      type="text"
+                      placeholder="e.g., Dallas, TX, London, UK, Miami, FL, Chicago, IL..."
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[44px]"
                       required
-                    />
-                  </div>
-                )}
-
-                {/* API Key input for non-YellowPages channels */}
-                {channel !== 'yellowpages_directory' && (
-                  <div className="md:col-span-3">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      {channel === 'google_places' && 'Google Places API Key'}
-                      {channel === 'outscraper_b2b' && 'Outscraper API Key'}
-                      {channel === 'facebook_pages' && 'Apify API Token'}
-                      {channel === 'whois_new_domains' && 'WhoisXML API Key'}
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="Optional or Custom Key..."
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[44px]"
                     />
                   </div>
                 )}
@@ -359,23 +300,25 @@ export default function ClientPitchPage() {
                     {searching ? (
                       <>
                         <span className="animate-spin text-base">⚡</span>
-                        <span>Scanning Businesses Lacking Active Websites...</span>
+                        <span>Discovering &amp; Verifying Businesses Lacking Websites...</span>
                       </>
                     ) : (
-                      <span>🔍 Run Opportunity Scan for Unwebbed Businesses</span>
+                      <span>🔍 Run Free Opportunity Discovery (Zero API Keys)</span>
                     )}
                   </button>
                 </div>
               </form>
             </div>
 
-            {/* Error / Success Notifications */}
+            {/* Error Message */}
             {error && (
-              <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex justify-between items-center">
+              <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs flex justify-between items-center">
                 <span>⚠️ {error}</span>
                 <button onClick={() => setError('')} className="text-red-500 font-bold ml-2">✕</button>
               </div>
             )}
+
+            {/* Success Message */}
             {success && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex justify-between items-center">
                 <span>✓ {success}</span>
@@ -388,7 +331,7 @@ export default function ClientPitchPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center px-1">
                   <h3 className="text-sm font-bold text-slate-900">
-                    Discovered Potential Clients ({discoveredLeads.length})
+                    Discovered Businesses ({discoveredLeads.length})
                   </h3>
                   <span className="text-xs text-slate-500">
                     Channel: <span className="font-semibold text-slate-700">{channel.replace(/_/g, ' ').toUpperCase()}</span>
@@ -406,9 +349,16 @@ export default function ClientPitchPage() {
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
                             <span>🚫</span> No Website Found
                           </span>
-                          <span className="text-xs font-medium text-slate-500">
-                            {lead.sourceChannel.replace(/_/g, ' ')}
-                          </span>
+
+                          {lead.verification?.isLegitimate ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                              <span>✓</span> Verified Legit ({lead.verification.confidenceScore}%)
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                              Listing ({lead.verification?.confidenceScore || 40}%)
+                            </span>
+                          )}
                         </div>
 
                         <h4 className="font-bold text-slate-900 text-base leading-snug">
@@ -416,8 +366,8 @@ export default function ClientPitchPage() {
                         </h4>
                         
                         {lead.address && (
-                          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                            <span>📍</span> <span>{lead.address}</span>
+                          <p className="text-xs text-slate-500 mt-1 flex items-start gap-1">
+                            <span className="shrink-0 mt-0.5">📍</span> <span className="line-clamp-2">{lead.address}</span>
                           </p>
                         )}
 
@@ -425,20 +375,26 @@ export default function ClientPitchPage() {
                           <div>
                             <span className="text-[10px] uppercase font-bold text-slate-400">Phone</span>
                             <p className="font-semibold text-slate-700">
-                              {lead.phone || 'Not listed'}
+                              {lead.phone || 'Scout on file'}
                             </p>
                           </div>
                           <div>
                             <span className="text-[10px] uppercase font-bold text-slate-400">Email</span>
                             <p className="font-semibold text-slate-700 truncate">
-                              {lead.email || 'Needs Contact Discovery'}
+                              {lead.email || 'Direct Phone Outreach'}
                             </p>
                           </div>
                         </div>
 
+                        {lead.verification?.checks?.activitySignals && (
+                          <div className="mt-2 text-[11px] bg-slate-50 px-2 py-1 rounded text-slate-600 flex items-center gap-1">
+                            <span>⭐</span> <span>{lead.verification.checks.activitySignals}</span>
+                          </div>
+                        )}
+
                         {lead.domain && (
-                          <div className="mt-2 text-xs bg-slate-50 p-2 rounded-lg text-slate-600 font-mono">
-                            Domain: {lead.domain}
+                          <div className="mt-2 text-xs bg-blue-50/60 p-2 rounded-lg text-blue-800 font-mono text-[11px] truncate">
+                            Domain / Social: {lead.domain}
                           </div>
                         )}
                       </div>
@@ -478,46 +434,68 @@ export default function ClientPitchPage() {
                   Track client communications, review custom pitch proposals, and manage deal progression.
                 </p>
               </div>
+              <button
+                onClick={fetchSavedLeads}
+                disabled={loadingSaved}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded-lg"
+              >
+                {loadingSaved ? 'Refreshing...' : '↻ Refresh'}
+              </button>
             </div>
 
-            {loadingSaved ? (
-              <div className="p-8 text-center text-xs text-slate-500">Loading your saved pipeline...</div>
-            ) : savedLeads.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500 bg-slate-50 rounded-xl">
-                No saved business leads in your repository yet. Run a scout search above and click "Save".
+            {savedLeads.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <span className="text-3xl block mb-2">📭</span>
+                <p className="text-sm font-medium">No saved leads in your pipeline yet.</p>
+                <p className="text-xs mt-1">Discover businesses lacking websites in the Scout tab and save them here.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {savedLeads.map((lead) => (
-                  <div key={lead._id} className="border border-slate-200 rounded-xl p-4 space-y-3 bg-white hover:border-blue-200 transition">
-                    <div className="flex justify-between items-start gap-2">
-                      <div>
-                        <h3 className="font-bold text-sm text-slate-900">{lead.businessName}</h3>
-                        <p className="text-xs text-slate-500">{lead.address}</p>
+                {savedLeads.map((item) => (
+                  <div
+                    key={item._id}
+                    className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 flex flex-col justify-between space-y-3"
+                  >
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                          {item.status || 'discovered'}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {new Date(item.updatedAt || item.firstSeen).toLocaleDateString()}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                        {lead.status.replace(/_/g, ' ')}
-                      </span>
+                      <h3 className="font-bold text-slate-900 text-sm">{item.businessName}</h3>
+                      <p className="text-xs text-slate-500">{item.address || 'Address on record'}</p>
+                      
+                      <div className="text-xs mt-2 text-slate-600 space-y-0.5">
+                        {item.phone && <div>📞 {item.phone}</div>}
+                        {item.email && <div>✉️ {item.email}</div>}
+                      </div>
+
+                      {item.pitchDeck?.subject && (
+                        <div className="mt-3 bg-white p-2.5 rounded-lg border border-slate-200 text-xs space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Saved Pitch</span>
+                          <p className="font-semibold text-slate-800 text-[11px] truncate">
+                            {item.pitchDeck.subject}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="text-xs text-slate-600 space-y-1">
-                      {lead.phone && <div>📞 <strong>Phone:</strong> {lead.phone}</div>}
-                      {lead.email && <div>📧 <strong>Email:</strong> {lead.email}</div>}
-                      {lead.domain && <div>🌐 <strong>Domain:</strong> {lead.domain}</div>}
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
                       <button
-                        onClick={() => handleGeneratePitch(lead)}
-                        className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold py-1.5 px-3 rounded-lg transition"
+                        onClick={() => handleGeneratePitch(item)}
+                        className="flex-1 bg-white hover:bg-slate-100 text-blue-600 border border-slate-200 text-xs font-semibold py-1.5 px-3 rounded-lg transition"
                       >
-                        📄 Open / Regenerate Pitch
+                        ✍️ Pitch Deck
                       </button>
                       <button
-                        onClick={() => handleDeleteSavedLead(lead._id)}
-                        className="text-xs text-red-500 hover:text-red-700 px-2 py-1.5"
+                        onClick={() => handleDeleteSavedLead(item._id)}
+                        className="text-red-500 hover:text-red-700 text-xs p-1.5"
+                        title="Delete lead"
                       >
-                        ✕ Remove
+                        🗑️
                       </button>
                     </div>
                   </div>
@@ -527,145 +505,148 @@ export default function ClientPitchPage() {
           </div>
         )}
 
-        {/* PITCH PROPOSAL MODAL */}
+        {/* MODAL: HIGH-CONVERTING PITCH PROPOSAL */}
         {activePitchLead && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto p-5 sm:p-6 space-y-5 border border-slate-200 shadow-2xl my-auto animate-in fade-in zoom-in-95 duration-200">
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
               
-              <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-slate-100 p-5 flex justify-between items-center z-10">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-                    High-Converting Website Development Pitch
-                  </span>
-                  <h3 className="font-extrabold text-slate-900 text-lg sm:text-xl mt-1">
-                    {activePitchLead.businessName}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Target Niche: {keyword} &bull; Location: {activePitchLead.address || location}
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🎯</span>
+                    <h3 className="font-bold text-slate-900 text-base">
+                      Website Proposal Pitch: {activePitchLead.businessName}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Targeted cold outreach proposal, service packages, and objection rebuttals.
                   </p>
                 </div>
                 <button
-                  onClick={() => setActivePitchLead(null)}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-sm transition"
+                  onClick={() => {
+                    setActivePitchLead(null);
+                    setPitchResult(null);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 text-xl font-bold px-2 py-1"
                 >
                   ✕
                 </button>
               </div>
 
-              {generatingPitch ? (
-                <div className="py-12 text-center space-y-3">
-                  <span className="animate-spin text-3xl inline-block">⚡</span>
-                  <p className="text-sm font-semibold text-slate-700">
-                    Crafting personalized cold email pitch and ROI justification...
-                  </p>
-                </div>
-              ) : pitchResult ? (
-                <div className="space-y-4">
-                  
-                  {/* Elevator Pitch Box */}
-                  <div className="bg-blue-50/70 border border-blue-200/80 p-3.5 rounded-xl space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900">
-                      💡 Core Opportunity Angle
-                    </span>
-                    <p className="text-xs text-blue-900 font-medium leading-relaxed">
-                      {pitchResult.elevatorPitch}
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                {generatingPitch ? (
+                  <div className="py-16 text-center space-y-3">
+                    <div className="inline-block animate-spin text-3xl">✨</div>
+                    <p className="text-sm font-semibold text-slate-700">
+                      Crafting tailored, high-converting website pitch...
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Analyzing local service competitors, pricing models, and mobile value propositions
                     </p>
                   </div>
+                ) : pitchResult ? (
+                  <div className="space-y-6">
 
-                  {/* Subject Lines */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        Suggested Cold Subject Lines
+                    {/* Subject Line Variations */}
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                        Suggested Email Subject Lines
                       </h4>
-                    </div>
-                    <div className="space-y-1">
-                      {pitchResult.subjectLines?.map((subj, sIdx) => (
-                        <div
-                          key={sIdx}
-                          onClick={() => copyToClipboard(subj, `subj_${sIdx}`)}
-                          className="bg-slate-50 hover:bg-slate-100 border border-slate-200 p-2 rounded-lg text-xs font-medium text-slate-800 cursor-pointer flex justify-between items-center transition"
-                        >
-                          <span>{subj}</span>
-                          <span className="text-[10px] text-blue-600 font-bold">
-                            {copiedKey === `subj_${sIdx}` ? '✓ Copied' : 'Copy'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Cold Email Body */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        Tailored Cold Email Body
-                      </h4>
-                      <button
-                        onClick={() => copyToClipboard(pitchResult.emailBody, 'email_body')}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
-                      >
-                        {copiedKey === 'email_body' ? '✓ Copied Full Email!' : '📋 Copy Email'}
-                      </button>
-                    </div>
-                    <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-xs text-slate-800 whitespace-pre-wrap leading-relaxed font-sans">
-                      {pitchResult.emailBody}
-                    </div>
-                  </div>
-
-                  {/* Suggested Packages */}
-                  {pitchResult.suggestedPackages && (
-                    <div className="space-y-1.5 pt-1">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        Recommended Service Packages
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {pitchResult.suggestedPackages.map((pkg, pIdx) => (
-                          <div key={pIdx} className="border border-slate-200 p-3 rounded-xl bg-slate-50 text-xs space-y-1">
-                            <div className="flex justify-between items-center font-bold text-slate-900">
-                              <span>{pkg.tier}</span>
-                              <span className="text-emerald-700">{pkg.priceRange}</span>
-                            </div>
-                            <p className="text-[11px] text-slate-600">{pkg.deliverables}</p>
+                      <div className="space-y-1.5">
+                        {(pitchResult.subjectLines || []).map((sub, i) => (
+                          <div
+                            key={i}
+                            className="flex justify-between items-center bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-800 transition"
+                          >
+                            <span className="font-medium truncate mr-2">{sub}</span>
+                            <button
+                              onClick={() => copyToClipboard(sub, `subj-${i}`)}
+                              className="text-blue-600 hover:text-blue-800 text-[11px] font-bold shrink-0"
+                            >
+                              {copiedKey === `subj-${i}` ? '✓ Copied' : 'Copy'}
+                            </button>
                           </div>
                         ))}
                       </div>
                     </div>
-                  )}
 
-                  {/* Objection Handling */}
-                  {pitchResult.objectionHandlers && (
-                    <div className="space-y-1.5 pt-1">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        Common Objection &amp; Rebuttal
-                      </h4>
-                      {pitchResult.objectionHandlers.map((obj, oIdx) => (
-                        <div key={oIdx} className="bg-amber-50/60 border border-amber-200/70 p-3 rounded-xl text-xs space-y-1">
-                          <p className="font-semibold text-amber-900">Client: &ldquo;{obj.objection}&rdquo;</p>
-                          <p className="text-amber-800 text-[11px]">Your Response: {obj.rebuttal}</p>
-                        </div>
-                      ))}
+                    {/* Cold Outreach Email Body */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          Personalized Cold Outreach Pitch
+                        </h4>
+                        <button
+                          onClick={() => copyToClipboard(pitchResult.emailBody, 'body')}
+                          className="text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg"
+                        >
+                          {copiedKey === 'body' ? '✓ Copied Email' : '📋 Copy Entire Pitch'}
+                        </button>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 font-sans whitespace-pre-wrap leading-relaxed">
+                        {pitchResult.emailBody}
+                      </div>
                     </div>
-                  )}
 
-                  <div className="pt-3 flex justify-between items-center border-t border-slate-100">
-                    <button
-                      onClick={() => handleSaveLead(activePitchLead, pitchResult)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-4 rounded-xl text-xs transition shadow-sm"
-                    >
-                      💾 Save Lead &amp; Pitch to Pipeline
-                    </button>
-                    <button
-                      onClick={() => setActivePitchLead(null)}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
-                    >
-                      Close
-                    </button>
+                    {/* Pricing Packages */}
+                    {pitchResult.suggestedPackages && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                          Tiered Website Service Packages
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {pitchResult.suggestedPackages.map((pkg, i) => (
+                            <div key={i} className="border border-blue-100 bg-blue-50/40 p-3.5 rounded-xl text-xs space-y-1">
+                              <div className="flex justify-between items-center font-bold text-slate-900">
+                                <span>{pkg.tier}</span>
+                                <span className="text-blue-600 bg-blue-100 px-2 py-0.5 rounded text-[11px]">
+                                  {pkg.priceRange}
+                                </span>
+                              </div>
+                              <p className="text-slate-600 text-[11px] leading-relaxed">
+                                {pkg.deliverables}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Objection Handlers */}
+                    {pitchResult.objectionHandlers && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                          Handling Client Objections
+                        </h4>
+                        <div className="space-y-2">
+                          {pitchResult.objectionHandlers.map((obj, i) => (
+                            <div key={i} className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs space-y-1">
+                              <p className="font-bold text-slate-800">“{obj.objection}”</p>
+                              <p className="text-slate-600 leading-relaxed text-[11px]">👉 {obj.rebuttal}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Modal Footer Actions */}
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                      <button
+                        onClick={() => {
+                          handleSaveLead(activePitchLead, pitchResult);
+                          setActivePitchLead(null);
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs py-2 px-4 rounded-xl shadow-sm transition"
+                      >
+                        💾 Save Lead &amp; Generated Pitch
+                      </button>
+                    </div>
+
                   </div>
-
-                </div>
-              ) : null}
-
+                ) : null}
+              </div>
             </div>
           </div>
         )}
