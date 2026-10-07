@@ -1,40 +1,43 @@
-name: PhD Supervisor Scout Pipeline
+name: Free PhD Supervisor Scraper (Zero-Cost Local NLP)
+
 on:
   schedule:
-    - cron: '0 8,20 * * *' # Runs at 8:00 AM and 8:00 PM UTC daily
-  workflow_dispatch: # Allows manual trigger anytime from GitHub UI
+    - cron: '0 8,16 * * 1-5' # Runs at 8:00 AM and 4:00 PM UTC, Monday to Friday
+  workflow_dispatch: # Allows manual triggering from the GitHub UI
+
+permissions:
+  contents: write # Needed to save seen_urls.txt back to the repository
 
 jobs:
-  scrape-supervisors:
+  run-scraper:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
-          pip install ddgs requests google-generativeai
+          pip install -r scripts/requirements.txt
+          python -m spacy download en_core_web_sm
 
-      - name: Run Supervisor Discovery & Notification Script
+      - name: Run Scraper
         env:
           RESEARCH_TOPIC: "Computer Science"
           RECRUITMENT_TIMEFRAME: "Fall 2026"
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python scripts/phd_supervisor_scout.py
 
-      - name: Commit updated seen_urls database
+      - name: Commit Database Updates
         run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add scripts/seen_urls.txt || echo "No seen_urls file"
-          git commit -m "chore(scout): update seen supervisor urls database" || echo "No changes to commit"
-          git push
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore(scout): update seen URLs database" && git push)

@@ -1,0 +1,4 @@
+duckduckgo-search
+ddgs
+spacy
+requests
