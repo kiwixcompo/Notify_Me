@@ -52,6 +52,7 @@ app.use('/api/fiverr', require('./routes/fiverr'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/grants', require('./routes/grants'));
 app.use('/api/supervisors', require('./routes/scholarships'));
+app.use('/api/client-pitch', require('./routes/clientPitch'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
