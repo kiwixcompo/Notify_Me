@@ -42,8 +42,9 @@ function generateHeuristicAcademicDossier(proposedTopic, searchData) {
     return timeframe && timeframe !== 'Any' ? timeframe : 'Upcoming Academic Intake / Ongoing';
   }
 
-  // 1. Gather all candidates from LinkedIn vectors
+  // 1. Gather all candidates from LinkedIn vectors (Posts + Profiles)
   const linkedInResults = [
+    ...(searchData.linkedinPosts || []).map(r => ({ ...r, category: 'ACTIVELY_RECRUITING' })),
     ...(searchData.activelyRecruiting || []).map(r => ({ ...r, category: 'ACTIVELY_RECRUITING' })),
     ...(searchData.labDirectors || []).map(r => ({ ...r, category: 'LAB_DIRECTOR' })),
     ...(searchData.graduateAdvisors || []).map(r => ({ ...r, category: 'GRADUATE_COORDINATOR' }))
@@ -121,16 +122,19 @@ You are an academic fellowship advisor and research scout. Analyze these raw sea
 "${requestedTimeframe}"
 
 ### Raw Discovered Profiles:
-1. Actively Recruiting Profiles:
+1. Direct LinkedIn Public Openings & Faculty Posts (site:linkedin.com/posts):
+${JSON.stringify(searchData.linkedinPosts || [], null, 2)}
+
+2. Actively Recruiting Profiles:
 ${JSON.stringify(searchData.activelyRecruiting || [], null, 2)}
 
-2. Lab Directors & Professors:
+3. Lab Directors & Professors:
 ${JSON.stringify(searchData.labDirectors || [], null, 2)}
 
-3. Graduate Program Directors / Coordinators:
+4. Graduate Program Directors / Coordinators:
 ${JSON.stringify(searchData.graduateAdvisors || [], null, 2)}
 
-4. OpenAlex Scholarly Knowledge Graph Faculty:
+5. OpenAlex Scholarly Knowledge Graph Faculty:
 ${JSON.stringify(searchData.openAlexFaculty || [], null, 2)}
 
 ### Task & Output Format:

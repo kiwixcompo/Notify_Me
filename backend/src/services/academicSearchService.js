@@ -112,23 +112,30 @@ async function findAcademicProfiles(proposedTopic, targetCountry = '', serperApi
     timeframeTerm = `("${tf}" OR "${tf.replace(/\s+/g, ' ')}")`;
   }
 
-  // 1. Run web search dorks (Google via Serper or Brave)
-  const [activelyRecruiting, labDirectors, graduateAdvisors] = await Promise.all([
-    // Vector 1: Faculty actively signaling open graduate / PhD funding with intake timeframe & benefits
+  // 1. Run multi-vector web search dorks (Google via Serper / DuckDuckGo ddgs / Brave)
+  const [linkedinPosts, activelyRecruiting, labDirectors, graduateAdvisors] = await Promise.all([
+    // Vector 1: Real LinkedIn Public Posts by Professors seeking PhD students (Ban-proof, zero rate limits)
+    searchGoogle(
+      `site:linkedin.com/posts "PhD" ("fully funded" OR "Graduate Research Assistant" OR "looking for students" OR "prospective students" OR "RA position") "${cleanTopic}" ${timeframeTerm} ${countryTerm} -"scholarship guide" -"tips" -"consultant"`.replace(/\s+/g, ' ').trim(),
+      8,
+      serperApiKey
+    ),
+
+    // Vector 2: Faculty profiles actively signaling open graduate / PhD funding with intake timeframe & benefits
     searchGoogle(
       `site:linkedin.com/in ("Assistant Professor" OR "Associate Professor" OR "Principal Investigator") "${cleanTopic}" ("accepting PhD" OR "looking for students" OR "open positions" OR "fully funded" OR "RA positions" OR "GRA" OR "tuition waiver" OR "stipend") ${timeframeTerm} ${countryTerm}`.replace(/\s+/g, ' ').trim(),
       8,
       serperApiKey
     ),
 
-    // Vector 2: Lab directors and established domain researchers mentioning funding or intake
+    // Vector 3: Lab directors and established domain researchers mentioning funding or intake
     searchGoogle(
       `site:linkedin.com/in ("Professor" OR "Director of Research" OR "Lab Director" OR "Head of Lab") "${cleanTopic}" ("University" OR "Institute of Technology" OR "College") ("funding" OR "funded" OR "grant" OR "students") ${timeframeTerm} ${countryTerm}`.replace(/\s+/g, ' ').trim(),
       6,
       serperApiKey
     ),
 
-    // Vector 3: Graduate Coordinators (Gatekeepers who manage departmental assistantships and waivers)
+    // Vector 4: Graduate Coordinators (Gatekeepers who manage departmental assistantships and waivers)
     searchGoogle(
       `site:linkedin.com/in ("Director of Graduate Studies" OR "Graduate Program Coordinator" OR "Department Chair") "${cleanTopic}" "University" ${countryTerm}`.replace(/\s+/g, ' ').trim(),
       6,
@@ -137,6 +144,7 @@ async function findAcademicProfiles(proposedTopic, targetCountry = '', serperApi
   ]);
 
   const totalDorkCount =
+    (linkedinPosts?.length || 0) +
     (activelyRecruiting?.length || 0) +
     (labDirectors?.length || 0) +
     (graduateAdvisors?.length || 0);
@@ -150,6 +158,7 @@ async function findAcademicProfiles(proposedTopic, targetCountry = '', serperApi
   }
 
   return {
+    linkedinPosts,
     activelyRecruiting,
     labDirectors,
     graduateAdvisors,

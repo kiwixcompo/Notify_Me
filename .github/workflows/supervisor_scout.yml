@@ -1,0 +1,40 @@
+name: PhD Supervisor Scout Pipeline
+on:
+  schedule:
+    - cron: '0 8,20 * * *' # Runs at 8:00 AM and 8:00 PM UTC daily
+  workflow_dispatch: # Allows manual trigger anytime from GitHub UI
+
+jobs:
+  scrape-supervisors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install ddgs requests google-generativeai
+
+      - name: Run Supervisor Discovery & Notification Script
+        env:
+          RESEARCH_TOPIC: "Computer Science"
+          RECRUITMENT_TIMEFRAME: "Fall 2026"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python scripts/phd_supervisor_scout.py
+
+      - name: Commit updated seen_urls database
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add scripts/seen_urls.txt || echo "No seen_urls file"
+          git commit -m "chore(scout): update seen supervisor urls database" || echo "No changes to commit"
+          git push

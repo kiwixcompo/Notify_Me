@@ -145,8 +145,60 @@ async function searchBrave(query, numResults = 8) {
   }
 }
 
+const { spawn } = require('child_process');
+const path = require('path');
+
 /**
- * Search Google via Serper.dev or fallback to Brave search scraping
+ * Searches DuckDuckGo via Python ddgs library (Zero-Cost, No rate limits, Ban-proof)
+ */
+async function searchDuckDuckGo(query, numResults = 8) {
+  return new Promise((resolve) => {
+    try {
+      const scriptPath = path.join(__dirname, 'ddgSearch.py');
+      const pyExe = process.env.PYTHON_PATH || 'python';
+      
+      const child = spawn(pyExe, [scriptPath, query, String(numResults)], {
+        timeout: 15000
+      });
+
+      let stdoutData = '';
+      let stderrData = '';
+
+      child.stdout.on('data', (chunk) => {
+        stdoutData += chunk.toString();
+      });
+
+      child.stderr.on('data', (chunk) => {
+        stderrData += chunk.toString();
+      });
+
+      child.on('close', (code) => {
+        if (code === 0 && stdoutData.trim()) {
+          try {
+            const parsed = JSON.parse(stdoutData.trim());
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              return resolve(parsed);
+            }
+          } catch (e) {
+            console.warn('[DDGS] JSON parse warning:', e.message);
+          }
+        }
+        resolve([]);
+      });
+
+      child.on('error', (err) => {
+        console.warn('[DDGS] Execution error:', err.message);
+        resolve([]);
+      });
+    } catch (err) {
+      console.warn('[DDGS] Invocation error:', err.message);
+      resolve([]);
+    }
+  });
+}
+
+/**
+ * Search Google via Serper.dev, with automatic fallback to DuckDuckGo (ddgs) and Brave Search
  */
 async function searchGoogle(query, numResults = 6, apiKey = '') {
   const effectiveKey = apiKey || await getEffectiveSerperKey();
@@ -175,7 +227,17 @@ async function searchGoogle(query, numResults = 6, apiKey = '') {
     }
   }
 
-  // Fallback to Brave Search
+  // Fallback 1: DuckDuckGo Search (ddgs) - Zero cost, highly reliable for LinkedIn dorks
+  try {
+    const ddgResults = await searchDuckDuckGo(query, numResults);
+    if (ddgResults && ddgResults.length > 0) {
+      return ddgResults;
+    }
+  } catch (ddgErr) {
+    console.warn(`DuckDuckGo fallback failed for "${query}":`, ddgErr.message);
+  }
+
+  // Fallback 2: Brave Search
   return await searchBrave(query, numResults);
 }
 
