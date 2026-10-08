@@ -69,7 +69,8 @@ function generateHeuristicAcademicDossier(proposedTopic, searchData) {
   const profiles = allCandidates.slice(0, 8).map(item => {
     // Parse "Dr. First Last - Title - University | LinkedIn"
     const parts = (item.title || '').split(/[-–|]/).map(s => s.trim());
-    const rawName = item.rawName || parts[0] || 'Dr. Academic Faculty';
+    let rawName = item.rawName || parts[0] || 'Academic Faculty';
+    rawName = rawName.replace(/'s Post.*$/i, '').replace(/on LinkedIn.*$/i, '').trim();
     const name = rawName.startsWith('Dr.') || rawName.startsWith('Prof.') ? rawName : `Prof. ${rawName}`;
     const academicRole = parts[1] || (item.category === 'ACTIVELY_RECRUITING' ? 'Assistant Professor / PI' : item.category === 'LAB_DIRECTOR' ? 'Professor & Lab Director' : 'Director of Graduate Studies');
     const institution = item.institution || parts[2] || 'University Research Department';
