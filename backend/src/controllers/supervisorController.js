@@ -23,19 +23,29 @@ async function handleSupervisorSearch(req, res) {
     // 1. Run the multi-vector dorking engine with timeframe filtering
     const searchData = await findAcademicProfiles(cleanTopic, cleanCountry, serper_api_key || '', cleanTimeframe);
 
-    // 2. Synthesize with Gemini / Groq
+    // 2. Synthesize with Gemini / Groq / Heuristic (Senior Lecturer Outreach Guidelines)
     const resultDossier = await synthesizeAcademicDossier(cleanTopic, searchData, gemini_api_key || '');
 
-    // Strictly cap to at most 8 results per search
-    const profiles = (resultDossier?.profiles || []).slice(0, 8);
+    const allProfiles = resultDossier?.profiles || [];
+
+    // Optional page & limit parameters for pagination
+    const page = parseInt(req.body.page || req.query.page || '1', 10);
+    const limit = parseInt(req.body.limit || req.query.limit || '8', 10);
+    const startIndex = (page - 1) * limit;
+    const paginatedProfiles = allProfiles.slice(startIndex, startIndex + limit);
 
     return res.status(200).json({
       success: true,
       topic: cleanTopic,
       country: cleanCountry,
       recruitment_timeframe: cleanTimeframe,
-      count: profiles.length,
-      data: profiles
+      totalCount: allProfiles.length,
+      page,
+      limit,
+      totalPages: Math.ceil(allProfiles.length / limit) || 1,
+      count: paginatedProfiles.length,
+      data: paginatedProfiles,
+      allData: allProfiles
     });
   } catch (error) {
     console.error('Supervisor discovery failed:', error);

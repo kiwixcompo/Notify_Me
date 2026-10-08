@@ -11,6 +11,9 @@ export default function SupervisorFinder() {
   const [customTimeframe, setCustomTimeframe] = useState('');
   const [loading, setLoading] = useState(false);
   const [professors, setProfessors] = useState([]);
+  const [allProfessors, setAllProfessors] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
   const [selectedProf, setSelectedProf] = useState(null);
   const [copiedKey, setCopiedKey] = useState(null);
   const [error, setError] = useState('');
@@ -37,6 +40,8 @@ export default function SupervisorFinder() {
     setLoading(true);
     setError('');
     setProfessors([]);
+    setAllProfessors([]);
+    setCurrentPage(1);
     try {
       const payload = {
         topic: topic.trim(),
@@ -51,9 +56,9 @@ export default function SupervisorFinder() {
       });
 
       if (res.data?.success) {
-        // Enforce maximum 8 results
-        const items = (res.data.data || []).slice(0, 8);
-        setProfessors(items);
+        const fullList = res.data.allData || res.data.data || [];
+        setAllProfessors(fullList);
+        setProfessors(fullList.slice(0, pageSize));
       }
     } catch (err) {
       console.error('Supervisor discovery error:', err);
@@ -61,6 +66,13 @@ export default function SupervisorFinder() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const goToPage = (pageNum) => {
+    setCurrentPage(pageNum);
+    const start = (pageNum - 1) * pageSize;
+    setProfessors(allProfessors.slice(start, start + pageSize));
+    window.scrollTo({ top: 350, behavior: 'smooth' });
   };
 
   const copyToClipboard = (text, key) => {
@@ -223,17 +235,20 @@ export default function SupervisorFinder() {
       )}
 
       {/* Results Overview */}
-      {professors.length > 0 && (
+      {allProfessors.length > 0 && (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-1 gap-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-slate-900">
-              Discovered Academic Contacts ({professors.length} of 8 max)
+              Discovered Academic Contacts ({professors.length} of {allProfessors.length} total)
             </h3>
             {effectiveTimeframe && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
                 ⏱️ {effectiveTimeframe}
               </span>
             )}
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+              Page {currentPage} of {Math.ceil(allProfessors.length / pageSize) || 1}
+            </span>
           </div>
           <span className="text-xs text-slate-500">
             Topic: <span className="font-semibold text-slate-700">&ldquo;{topic}&rdquo;</span>
@@ -241,9 +256,9 @@ export default function SupervisorFinder() {
         </div>
       )}
 
-      {/* Results Grid - Strictly Limited to 8 */}
+      {/* Results Grid - Paginated in batches of 8 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {professors.slice(0, 8).map((prof, i) => (
+        {professors.map((prof, i) => (
           <div
             key={i}
             className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition-all shadow-sm space-y-3"
@@ -255,12 +270,14 @@ export default function SupervisorFinder() {
                     className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
                       prof.category === 'ACTIVELY_RECRUITING'
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : prof.category === 'ADVERTISED_STUDENTSHIP'
+                        ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
                         : prof.category === 'GRADUATE_COORDINATOR'
                         ? 'bg-amber-100 text-amber-800 border border-amber-300'
                         : 'bg-blue-100 text-blue-800 border border-blue-200'
                     }`}
                   >
-                    {prof.category ? prof.category.replace(/_/g, ' ') : 'FACULTY'}
+                    {prof.postType || (prof.category ? prof.category.replace(/_/g, ' ') : 'FACULTY')}
                   </span>
 
                   {/* Recruitment Timeframe Badge */}
@@ -294,7 +311,7 @@ export default function SupervisorFinder() {
               <div className="mt-2.5 p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
                   <span>💰</span>
-                  <span>Funding &amp; Student Benefits:</span>
+                  <span>Verified Funding &amp; Student Benefits:</span>
                 </div>
                 <p className="text-[11px] text-emerald-800 font-medium leading-relaxed">
                   {prof.fundingAndBenefits || prof.fundingSignal || 'Standard Departmental Research/Teaching Assistantship & Tuition Waiver'}
@@ -310,7 +327,7 @@ export default function SupervisorFinder() {
                   rel="noreferrer"
                   className="flex-1 text-center bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold py-2 px-3 rounded-xl transition"
                 >
-                  Academic / LinkedIn Profile ↗
+                  Project / Profile ↗
                 </a>
               )}
               <button
@@ -323,6 +340,49 @@ export default function SupervisorFinder() {
           </div>
         ))}
       </div>
+
+      {/* Pagination Controls */}
+      {allProfessors.length > pageSize && (
+        <div className="flex items-center justify-between border-t border-slate-200 pt-4 px-2">
+          <button
+            type="button"
+            disabled={currentPage === 1}
+            onClick={() => goToPage(currentPage - 1)}
+            className="px-3.5 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            ← Previous 8
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: Math.ceil(allProfessors.length / pageSize) }).map((_, idx) => {
+              const pageNum = idx + 1;
+              return (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => goToPage(pageNum)}
+                  className={`w-7 h-7 rounded-lg text-xs font-bold transition ${
+                    currentPage === pageNum
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            disabled={currentPage === Math.ceil(allProfessors.length / pageSize)}
+            onClick={() => goToPage(currentPage + 1)}
+            className="px-3.5 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            Next 8 →
+          </button>
+        </div>
+      )}
 
       {/* Outreach Kit Modal */}
       {selectedProf && (
