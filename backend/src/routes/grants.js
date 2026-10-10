@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { requireAuth } = require('../controllers/userController');
+const { optionalAuth, requireAuth } = require('../controllers/userController');
 const GrantProposal = require('../models/GrantProposal');
 
 const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://127.0.0.1:8000';
 
 // POST /api/grants/search - Autonomous discovery of grant opportunities
-router.post('/search', requireAuth, async (req, res) => {
+router.post('/search', optionalAuth, async (req, res) => {
   try {
     const { field_of_research, career_stage, region, funder_type, max_results } = req.body;
     const response = await axios.post(`${PYTHON_SERVICE_URL}/grants/search`, {
@@ -16,7 +16,7 @@ router.post('/search', requireAuth, async (req, res) => {
       region: region || 'Global',
       funder_type: funder_type || 'All',
       max_results: max_results || 15
-    }, { timeout: 30000 });
+    }, { timeout: 90000 });
 
     res.json(response.data);
   } catch (error) {
@@ -26,7 +26,7 @@ router.post('/search', requireAuth, async (req, res) => {
 });
 
 // POST /api/grants/generate-proposal - Full structured proposal generator
-router.post('/generate-proposal', requireAuth, async (req, res) => {
+router.post('/generate-proposal', optionalAuth, async (req, res) => {
   try {
     const response = await axios.post(`${PYTHON_SERVICE_URL}/grants/generate-proposal`, req.body, { timeout: 90000 });
     res.json(response.data);
@@ -37,7 +37,7 @@ router.post('/generate-proposal', requireAuth, async (req, res) => {
 });
 
 // POST /api/grants/generate-budget - Itemized budget & narrative justification
-router.post('/generate-budget', requireAuth, async (req, res) => {
+router.post('/generate-budget', optionalAuth, async (req, res) => {
   try {
     const response = await axios.post(`${PYTHON_SERVICE_URL}/grants/generate-budget`, req.body, { timeout: 60000 });
     res.json(response.data);

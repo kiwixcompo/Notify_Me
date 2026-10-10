@@ -525,7 +525,7 @@ router.post('/search', optionalAuth, async (req, res) => {
 });
 
 // POST /api/job-hunter/resume/upload
-router.post('/resume/upload', requireAuth, upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
+router.post('/resume/upload', optionalAuth, upload.fields([{ name: 'resume', maxCount: 1 }, { name: 'file', maxCount: 1 }]), async (req, res) => {
   try {
     const file = (req.files?.resume && req.files.resume[0]) || (req.files?.file && req.files.file[0]);
     if (!file) {
@@ -587,7 +587,7 @@ router.post('/test-key', optionalAuth, async (req, res) => {
 });
 
 // POST /api/job-hunter/cover-letter
-router.post('/cover-letter', requireAuth, async (req, res) => {
+router.post('/cover-letter', optionalAuth, async (req, res) => {
   try {
     const { resume_text, job_title, company, job_description, candidate_name, groq_api_key } = req.body;
     const effectiveKey = await getEffectiveGroqKey(groq_api_key);
@@ -632,7 +632,7 @@ ${(resume_text || '').substring(0, 3000)}
 });
 
 // POST /api/job-hunter/match-score
-router.post('/match-score', requireAuth, async (req, res) => {
+router.post('/match-score', optionalAuth, async (req, res) => {
   try {
     const { resume_text, job_title, job_description, groq_api_key } = req.body;
     const effectiveKey = await getEffectiveGroqKey(groq_api_key);

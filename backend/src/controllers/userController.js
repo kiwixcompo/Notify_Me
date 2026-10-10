@@ -7,16 +7,22 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
 // Auth middleware
 async function requireAuth(req, res, next) {
   const auth = req.headers.authorization;
-  if (auth && auth.startsWith('Bearer ')) {
+  if (auth) {
     try {
-      const token = auth.split(' ')[1];
+      const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : auth.trim();
       const payload = jwt.verify(token, JWT_SECRET);
-      if (payload && payload.userId) {
-        req.userId = payload.userId;
+      const uid = payload?.userId || payload?.id || payload?._id;
+      if (uid) {
+        req.userId = uid;
+        req.user = payload;
         return next();
       }
     } catch (err) {
-      return res.status(401).json({ error: 'Not authorized, token failed' });
+      const isExpired = err.name === 'TokenExpiredError';
+      return res.status(401).json({
+        error: isExpired ? 'Session expired. Please log in again.' : 'Not authorized, token failed',
+        code: isExpired ? 'TOKEN_EXPIRED' : 'TOKEN_INVALID'
+      });
     }
   }
 
@@ -26,12 +32,14 @@ async function requireAuth(req, res, next) {
 // Optional Auth middleware (populates req.userId if valid token, but does not reject request)
 async function optionalAuth(req, res, next) {
   const auth = req.headers.authorization;
-  if (auth && auth.startsWith('Bearer ')) {
+  if (auth) {
     try {
-      const token = auth.split(' ')[1];
+      const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : auth.trim();
       const payload = jwt.verify(token, JWT_SECRET);
-      if (payload && payload.userId) {
-        req.userId = payload.userId;
+      const uid = payload?.userId || payload?.id || payload?._id;
+      if (uid) {
+        req.userId = uid;
+        req.user = payload;
       }
     } catch (err) {
       // Ignore token failure for optional routes

@@ -1,6 +1,6 @@
 const express = require('express');
-const { requireAuth } = require('../controllers/userController');
-const { getUserJobs, getJobCalendar, getJobStats, searchJobsRealTime } = require('../controllers/jobController');
+const { optionalAuth, requireAuth } = require('../controllers/userController');
+const { getUserJobs, getJobCalendar, getJobStats, searchJobsRealTime, handleFindCareerPage } = require('../controllers/jobController');
 const router = express.Router();
 
 // GET /api/jobs - Get jobs for a specific date or today
@@ -14,6 +14,9 @@ router.get('/stats', requireAuth, getJobStats);
 
 // GET /api/jobs/search - Real-time job search from multiple sources
 router.get('/search', searchJobsRealTime);
+
+// POST /api/jobs/career-page - Free exact career page scout by company and role
+router.post('/career-page', optionalAuth, handleFindCareerPage);
 
 // GET /api/jobs/test - Test endpoint to check database and fetch jobs
 router.get('/test', requireAuth, async (req, res) => {

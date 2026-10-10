@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../controllers/userController');
+const { optionalAuth, requireAuth } = require('../controllers/userController');
 const {
   fetchFormalJobs,
   fetchJobDetails,
@@ -11,7 +11,7 @@ const Job = require('../models/Job');
 const Scholarship = require('../models/Scholarship');
 
 // GET /api/linkedin/jobs - Phase 1: Rapid Guest API for remote jobs
-router.get('/jobs', requireAuth, async (req, res) => {
+router.get('/jobs', optionalAuth, async (req, res) => {
   try {
     const { keywords, location, isRemote, offset, timeFilter } = req.query;
     const jobs = await fetchFormalJobs({
@@ -43,7 +43,7 @@ router.get('/job/:id', requireAuth, async (req, res) => {
 });
 
 // GET /api/linkedin/posts - Phase 2: Recruiter shouts & Supervisor scholarships (Actual LinkedIn Posts)
-router.get('/posts', requireAuth, async (req, res) => {
+router.get('/posts', optionalAuth, async (req, res) => {
   try {
     const { query, type, timeFilter, maxResults } = req.query;
     const posts = await crawlLinkedInFeedPostsSERP({
@@ -61,7 +61,7 @@ router.get('/posts', requireAuth, async (req, res) => {
 });
 
 // GET /api/linkedin/x-posts - Crawl opportunities on X (Twitter)
-router.get('/x-posts', requireAuth, async (req, res) => {
+router.get('/x-posts', optionalAuth, async (req, res) => {
   try {
     const { crawlXOpportunities } = require('../services/socialCrawler');
     const { query, type, timeFilter, maxResults, authToken, ct0 } = req.query;
@@ -81,7 +81,7 @@ router.get('/x-posts', requireAuth, async (req, res) => {
 });
 
 // GET /api/linkedin/fb-posts - Crawl opportunities on Facebook
-router.get('/fb-posts', requireAuth, async (req, res) => {
+router.get('/fb-posts', optionalAuth, async (req, res) => {
   try {
     const { crawlFacebookOpportunities } = require('../services/socialCrawler');
     const { query, type, timeFilter, targetGroupUrl, maxResults, cUser, xsToken } = req.query;

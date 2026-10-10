@@ -243,6 +243,22 @@ async function searchGoogle(query, numResults = 6, apiKey = '') {
  * confirming domain and path existence to prevent incorrect subdomains (e.g. jobs.wallethub.com vs wallethub.com/jobs/)
  */
 async function resolveExactCompanyJobUrl(companyName, jobTitle, serperApiKey = '') {
+  // First, leverage the zero-cost careerPageScout engine
+  try {
+    const { getExactCareerPageUrl } = require('./careerPageScout');
+    const scouted = await getExactCareerPageUrl(companyName, jobTitle);
+    if (scouted && scouted.success && scouted.careerUrl) {
+      return {
+        exactUrl: scouted.careerUrl,
+        title: scouted.title || `${jobTitle} at ${companyName}`,
+        snippet: `Verified official application endpoint for ${companyName}.`,
+        provider: scouted.type === 'ATS_JOB_BOARD' ? 'Direct ATS' : 'Official Careers Portal'
+      };
+    }
+  } catch (scoutErr) {
+    console.warn('[SearchService] careerPageScout fallback warning:', scoutErr.message);
+  }
+
   const cleanComp = cleanQuery(companyName);
   const cleanRole = cleanQuery(jobTitle);
   const companySlug = cleanComp.toLowerCase().replace(/[^a-z0-9]/g, '');

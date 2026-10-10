@@ -327,4 +327,22 @@ async function searchJobsRealTime(req, res, next) {
   }
 }
 
-module.exports = { getUserJobs, getJobCalendar, getJobStats, searchJobsRealTime }; 
+// POST /api/jobs/career-page - Free exact career page discovery by company and role
+async function handleFindCareerPage(req, res, next) {
+  try {
+    const { company, role } = req.body;
+    if (!company || !company.trim()) {
+      return res.status(400).json({ error: 'Company name is required.' });
+    }
+
+    const { getExactCareerPageUrl } = require('../services/careerPageScout');
+    const result = await getExactCareerPageUrl(company.trim(), (role || '').trim());
+
+    return res.json(result);
+  } catch (err) {
+    console.error('Career page scout error:', err);
+    res.status(500).json({ error: 'Failed to discover career page URL.' });
+  }
+}
+
+module.exports = { getUserJobs, getJobCalendar, getJobStats, searchJobsRealTime, handleFindCareerPage }; 

@@ -1,14 +1,14 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const { requireAuth } = require('../controllers/userController');
+const { optionalAuth, requireAuth } = require('../controllers/userController');
 
 const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://127.0.0.1:8000';
 
 // GET /api/portals/config - Retrieve list of configured national portals & shortage criteria
 router.get('/config', async (req, res) => {
   try {
-    const response = await axios.get(`${PYTHON_SERVICE_URL}/portals/config`, { timeout: 10000 });
+    const response = await axios.get(`${PYTHON_SERVICE_URL}/portals/config`, { timeout: 15000 });
     res.json(response.data);
   } catch (error) {
     console.error('Error fetching portals config:', error.message);
@@ -17,9 +17,9 @@ router.get('/config', async (req, res) => {
 });
 
 // POST /api/portals/search - Discover vacancies & shortage tracks across official portals
-router.post('/search', requireAuth, async (req, res) => {
+router.post('/search', optionalAuth, async (req, res) => {
   try {
-    const response = await axios.post(`${PYTHON_SERVICE_URL}/portals/search`, req.body, { timeout: 35000 });
+    const response = await axios.post(`${PYTHON_SERVICE_URL}/portals/search`, req.body, { timeout: 90000 });
     res.json(response.data);
   } catch (error) {
     console.error('Error searching portals:', error.message);
@@ -28,7 +28,7 @@ router.post('/search', requireAuth, async (req, res) => {
 });
 
 // POST /api/portals/assist - Generate tailored international application package (Cover Letter, Visa match, Outreach, Checklist)
-router.post('/assist', requireAuth, async (req, res) => {
+router.post('/assist', optionalAuth, async (req, res) => {
   try {
     const response = await axios.post(`${PYTHON_SERVICE_URL}/portals/assist`, req.body, { timeout: 90000 });
     res.json(response.data);

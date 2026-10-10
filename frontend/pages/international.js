@@ -72,6 +72,11 @@ export default function InternationalPortals() {
       setJobs(res.data?.jobs || []);
     } catch (err) {
       console.error('Search error:', err);
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        return;
+      }
       setError(err.response?.data?.error || 'Failed to search international portals.');
     } finally {
       setLoading(false);
@@ -138,6 +143,11 @@ export default function InternationalPortals() {
       setApplicationPackage(res.data?.application_package || '');
     } catch (err) {
       console.error('Assist error:', err);
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        return;
+      }
       setError(err.response?.data?.error || 'Failed to generate application package. Verify your Groq API key.');
     } finally {
       setAssistLoading(false);
