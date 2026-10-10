@@ -77,6 +77,48 @@ function extractExactFundingDetails(text) {
 }
 
 /**
+ * Checks whether an academic post, studentship, or scholarship offer has expired.
+ * Analyzes deadlines, past intake years, explicit closed notices, and relative age.
+ */
+function isAcademicPostExpired(text, title = '') {
+  const combined = `${title || ''} ${text || ''}`.replace(/\s+/g, ' ');
+  
+  // 1. Explicit closure indicators
+  if (/(?:position (?:is |has been )?(?:now )?closed|position (?:is )?filled|applications? (?:are )?(?:now )?closed|no longer accepting (?:applications|students)|offer (?:has )?expired|deadline (?:has )?passed|application (?:period )?closed|closed for applications|recruitment (?:is )?completed|recruitment closed)/i.test(combined)) {
+    return true;
+  }
+
+  // 2. Strict check for past academic intake cycles (e.g., Fall 2020-2024, Spring 2020-2024, etc.)
+  // When running in late 2024 / 2025 / 2026, posts for 2018-2023 or expired past semesters are stale
+  const currentYear = new Date().getFullYear(); // e.g. 2026
+  
+  // Look for past intake mentions like "Fall 2021", "Spring 2022", "2022/2023 intake", "deadline: 15 Jan 2023"
+  const pastYearIntakeMatch = combined.match(/\b(?:Fall|Spring|Autumn|Winter|Summer|intake|session|academic year)\s*(?:201\d|202[0-3])\b/i);
+  if (pastYearIntakeMatch) {
+    // If the post only references an intake term prior to 2024 and does not mention 2025/2026/2027, it's expired
+    if (!combined.match(/\b202[5-9]\b/)) {
+      return true;
+    }
+  }
+
+  // 3. Explicit deadline date parsing (e.g. "Deadline: 15 January 2024", "Closing date: 31/03/2023")
+  const deadlineMatch = combined.match(/(?:deadline|closing date|apply before|applications close|closing on)\s*:?\s*([0-9]{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+[0-9]{4}|[A-Za-z]+\s+[0-9]{1,2}(?:st|nd|rd|th)?,?\s+[0-9]{4}|[0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{4})/i);
+  if (deadlineMatch) {
+    const rawDateStr = deadlineMatch[1].replace(/(?:st|nd|rd|th)/gi, '');
+    const parsedDeadline = Date.parse(rawDateStr);
+    if (!isNaN(parsedDeadline)) {
+      const now = new Date().getTime();
+      // If the parsed deadline has passed
+      if (parsedDeadline < now) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Searches for explicit, published PhD project studentships on FindAPhD
  */
 async function searchFindAPhDOpportunities(topic, country = '', serperApiKey = '', limit = 12) {
@@ -243,17 +285,22 @@ async function findAcademicProfiles(proposedTopic, targetCountry = '', serperApi
     exactFunding: extractExactFundingDetails(p.snippet) || (/(?:fully funded|scholarship|studentship)/i.test(p.snippet) ? 'Fully Funded (Tuition + Living Stipend Covered)' : 'Project Grant Funded (Contact supervisor for funding scope)')
   }));
 
+  // Filter out any expired posts (past deadlines, closed positions, past academic years)
+  const activeFirstPerson = enrichedFirstPerson.filter(p => !isAcademicPostExpired(p.snippet, p.title));
+  const activeLabOpenings = enrichedLabOpenings.filter(p => !isAcademicPostExpired(p.snippet, p.title));
+  const activeFindAPhDProjects = findAPhDProjects.filter(p => !isAcademicPostExpired(p.snippet, p.title));
+
   // Fallback to OpenAlex if search dorks returned 0 results
   let openAlexFaculty = [];
-  if (enrichedFirstPerson.length === 0 && enrichedLabOpenings.length === 0 && findAPhDProjects.length === 0) {
-    console.log(`[Supervisor Finder] SERP returned 0 records. Querying OpenAlex for "${cleanTopic}"...`);
+  if (activeFirstPerson.length === 0 && activeLabOpenings.length === 0 && activeFindAPhDProjects.length === 0) {
+    console.log(`[Supervisor Finder] All records were filtered or SERP returned 0. Querying OpenAlex for "${cleanTopic}"...`);
     openAlexFaculty = await findOpenAlexAcademicProfiles(cleanTopic, targetCountry, recruitmentTimeframe);
   }
 
   return {
-    firstPersonPosts: enrichedFirstPerson,
-    labOpenings: enrichedLabOpenings,
-    findAPhDProjects,
+    firstPersonPosts: activeFirstPerson,
+    labOpenings: activeLabOpenings,
+    findAPhDProjects: activeFindAPhDProjects,
     openAlexFaculty,
     recruitmentTimeframe,
     proposedTopic,
@@ -264,5 +311,6 @@ async function findAcademicProfiles(proposedTopic, targetCountry = '', serperApi
 module.exports = {
   findAcademicProfiles,
   findOpenAlexAcademicProfiles,
-  extractExactFundingDetails
+  extractExactFundingDetails,
+  isAcademicPostExpired
 };

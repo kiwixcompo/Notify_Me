@@ -192,7 +192,10 @@ Extract the exact funding that the supervisor or project has access to (e.g. "EP
 2. SPECIFIC CALLS FOR STUDENTS:
 Filter for individuals or institutions that state they are actively looking for PhD candidates to work with on funded scholarships.
 
-3. OUTREACH KIT / EMAIL GUIDANCE (BASED ON SENIOR LECTURER ADVICE):
+3. UNEXPIRED OFFERS ONLY:
+Only include positions, studentships, or supervisor openings that are currently active and NOT expired. Exclude any post where the application deadline has passed, where the intake term is in the past (e.g. earlier than 2025/2026), or where the post indicates the position has already been filled or closed.
+
+4. OUTREACH KIT / EMAIL GUIDANCE (BASED ON SENIOR LECTURER ADVICE):
 In the UK and global academic systems, professors receive hundreds of generic cold emails that get ignored because they lack eligibility and funding clarity.
 The generated cold email MUST:
 - Immediately state eligibility (language requirements, e.g., IELTS 6.5+, and degree classification).
